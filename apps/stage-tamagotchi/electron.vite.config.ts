@@ -31,7 +31,6 @@ export default defineConfig({
           // Native modules that have `__dirname` usages. Externalize to avoid bundling
           // them into ESM and causing issues in runtime.
           'electron-click-drag-plugin',
-          'get-windows',
           'uiohook-napi',
           '@auv-js/cli',
           '@auv-js/sdk',
