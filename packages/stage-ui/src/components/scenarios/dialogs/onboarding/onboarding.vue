@@ -20,6 +20,7 @@ import StepWelcome from './step-welcome.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
+import { useSpeechStore } from '../../../../stores/modules/speech'
 import { useVisionStore } from '../../../../stores/modules/vision'
 import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
@@ -45,6 +46,7 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
+const speechStore = useSpeechStore()
 const visionStore = useVisionStore()
 const {
   activeProvider,
@@ -180,6 +182,19 @@ async function handleSave() {
   if (activeProvider.value === 'google-generative-ai' && activeModel.value) {
     visionStore.activeProvider = activeProvider.value
     visionStore.activeModel = activeModel.value
+
+    const geminiConfig = providerStore.getProviderConfig('google-generative-ai')
+    const apiKey = typeof geminiConfig?.apiKey === 'string' ? geminiConfig.apiKey.trim() : ''
+    if (apiKey) {
+      await providersStore.initializeProvider('google-gemini-audio-speech')
+      await providerStore.patchProviderConfig('google-gemini-audio-speech', { apiKey })
+      await providersStore.forceProviderConfigured('google-gemini-audio-speech')
+      await speechStore.selectProviderModel(
+        'google-gemini-audio-speech',
+        'gemini-2.5-flash-preview-tts',
+        'Leda',
+      )
+    }
   }
 
   trackOnboardingStepCompleted(currentStep.value?.id ?? 'unknown')
