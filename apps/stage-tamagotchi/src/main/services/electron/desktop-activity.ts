@@ -4,6 +4,7 @@ import type { BrowserWindow } from 'electron'
 import type { ElectronForegroundWindowContext } from '../../../shared/eventa'
 
 import { execFile } from 'node:child_process'
+import process from 'node:process'
 import { promisify } from 'node:util'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -12,7 +13,33 @@ import { electronGetForegroundWindowContext } from '../../../shared/eventa'
 
 const execFileAsync = promisify(execFile)
 
-const WINDOWS_FOREGROUND_SCRIPT = "$signature = @'\nusing System;\nusing System.Text;\nusing System.Runtime.InteropServices;\npublic static class AiriForegroundWindow {\n  [DllImport(\"user32.dll\")]\n  public static extern IntPtr GetForegroundWindow();\n  [DllImport(\"user32.dll\", SetLastError=true)]\n  public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);\n  [DllImport(\"user32.dll\", CharSet=CharSet.Unicode, SetLastError=true)]\n  public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);\n}\n'@\nAdd-Type -TypeDefinition $signature -ErrorAction SilentlyContinue | Out-Null\n$handle = [AiriForegroundWindow]::GetForegroundWindow()\nif ($handle -eq [IntPtr]::Zero) { return }\n$pidValue = [uint32]0\n[AiriForegroundWindow]::GetWindowThreadProcessId($handle, [ref]$pidValue) | Out-Null\n$titleBuffer = New-Object System.Text.StringBuilder 2048\n[AiriForegroundWindow]::GetWindowText($handle, $titleBuffer, $titleBuffer.Capacity) | Out-Null\n$process = Get-Process -Id $pidValue -ErrorAction SilentlyContinue\n[pscustomobject]@{\n  appName = if ($process) { $process.ProcessName } else { $null }\n  processId = [int]$pidValue\n  title = $titleBuffer.ToString()\n  windowId = $handle.ToInt64()\n} | ConvertTo-Json -Compress"
+const WINDOWS_FOREGROUND_SCRIPT = String.raw`$signature = @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class AiriForegroundWindow {
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", SetLastError=true)]
+  public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+}
+'@
+Add-Type -TypeDefinition $signature -ErrorAction SilentlyContinue | Out-Null
+$handle = [AiriForegroundWindow]::GetForegroundWindow()
+if ($handle -eq [IntPtr]::Zero) { return }
+$pidValue = [uint32]0
+[AiriForegroundWindow]::GetWindowThreadProcessId($handle, [ref]$pidValue) | Out-Null
+$titleBuffer = New-Object System.Text.StringBuilder 2048
+[AiriForegroundWindow]::GetWindowText($handle, $titleBuffer, $titleBuffer.Capacity) | Out-Null
+$process = Get-Process -Id $pidValue -ErrorAction SilentlyContinue
+[pscustomobject]@{
+  appName = if ($process) { $process.ProcessName } else { $null }
+  processId = [int]$pidValue
+  title = $titleBuffer.ToString()
+  windowId = $handle.ToInt64()
+} | ConvertTo-Json -Compress`
 
 function unavailable(): ElectronForegroundWindowContext {
   return {
@@ -72,7 +99,7 @@ export function createDesktopActivityService(params: {
       }
     }
     catch (error) {
-      console.debug('[DesktopActivity] Foreground window unavailable:', error)
+      console.info('[DesktopActivity] Foreground window unavailable:', error)
       return unavailable()
     }
   })

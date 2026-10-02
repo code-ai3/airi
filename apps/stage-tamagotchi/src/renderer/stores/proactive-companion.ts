@@ -84,7 +84,7 @@ function stringifyObservation(value: unknown, maxLength = 4_000) {
 }
 
 function looksSensitiveForeground(appName?: string, title?: string) {
-  return /(?:1password|bitwarden|keepass|password|passkey|authenticator|otp|banking|crypto wallet)/i.test(`${appName ?? ''} ${title ?? ''}`)
+  return /1password|bitwarden|keepass|password|passkey|authenticator|otp|banking|crypto wallet/i.test(`${appName ?? ''} ${title ?? ''}`)
 }
 
 function findImagePath(value: unknown): string | undefined {
@@ -92,7 +92,7 @@ function findImagePath(value: unknown): string | undefined {
     if (/\.(?:png|jpe?g)$/i.test(value))
       return value
 
-    const windowsPath = value.match(/[A-Za-z]:\\[^"'\r\n]+?\.(?:png|jpe?g)/i)?.[0]
+    const windowsPath = value.match(/[a-z]:\\[^"'\r\n]+?\.(png|jpe?g)/i)?.[0]
     if (windowsPath)
       return windowsPath
     return undefined
@@ -204,7 +204,7 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
       }
     }
     catch (error) {
-      console.debug('[ProactiveCompanion] Foreground window unavailable:', error)
+      console.info('[ProactiveCompanion] Foreground window unavailable:', error)
     }
 
     let screenSummary = sensitiveForeground
@@ -234,13 +234,13 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
               await deleteComputerUseArtifact({ path: screenshotPath })
             }
             catch (error) {
-              console.debug('[ProactiveCompanion] Failed to delete temporary screenshot:', error)
+              console.info('[ProactiveCompanion] Failed to delete temporary screenshot:', error)
             }
           }
         }
       }
       catch (error) {
-        console.debug('[ProactiveCompanion] Screen understanding unavailable:', error)
+        console.info('[ProactiveCompanion] Screen understanding unavailable:', error)
       }
     }
 
@@ -482,7 +482,7 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
         idleSeconds = await getSystemIdleTime()
       }
       catch (error) {
-        console.debug('[ProactiveCompanion] Idle time unavailable:', error)
+        console.info('[ProactiveCompanion] Idle time unavailable:', error)
         return
       }
 
