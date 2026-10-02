@@ -7,7 +7,14 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { app, shell } from 'electron'
 import { isLinux, isMacOS, isWindows } from 'std-env'
 
-import { electron, electronAppIsWayland, electronAppOpenUserDataFolder, electronAppQuit } from '../../../shared/eventa'
+import {
+  electron,
+  electronAppGetLaunchAtLogin,
+  electronAppIsWayland,
+  electronAppOpenUserDataFolder,
+  electronAppQuit,
+  electronAppSetLaunchAtLogin,
+} from '../../../shared/eventa'
 import { resolveIsWayland } from '../../app/ozone'
 
 export function createAppService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
@@ -28,4 +35,22 @@ export function createAppService(params: { context: ReturnType<typeof createCont
     return { path }
   })
   defineInvokeHandler(params.context, electronAppQuit, () => app.quit())
+
+  function getLaunchAtLoginState() {
+    const supported = isWindows && app.isPackaged
+    return {
+      enabled: supported ? app.getLoginItemSettings().openAtLogin : false,
+      supported,
+    }
+  }
+
+  defineInvokeHandler(params.context, electronAppGetLaunchAtLogin, () => getLaunchAtLoginState())
+  defineInvokeHandler(params.context, electronAppSetLaunchAtLogin, (enabled) => {
+    const state = getLaunchAtLoginState()
+    if (!state.supported)
+      return state
+
+    app.setLoginItemSettings({ openAtLogin: Boolean(enabled) })
+    return getLaunchAtLoginState()
+  })
 }

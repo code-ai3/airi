@@ -466,8 +466,15 @@ export const electronGetSystemIdleTime = defineInvokeEventa<number>('eventa:invo
 export const electronGetForegroundWindowContext = defineInvokeEventa<ElectronForegroundWindowContext>('eventa:invoke:electron:desktop:get-foreground-window')
 export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
 export const electronWindowSetVisible = defineInvokeEventa<void, { visible: boolean, focus?: boolean }>('eventa:invoke:electron:window:set-visible')
+export interface ElectronLaunchAtLoginState {
+  enabled: boolean
+  supported: boolean
+}
+
 export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
+export const electronAppGetLaunchAtLogin = defineInvokeEventa<ElectronLaunchAtLoginState>('eventa:invoke:electron:app:get-launch-at-login')
+export const electronAppSetLaunchAtLogin = defineInvokeEventa<ElectronLaunchAtLoginState, boolean>('eventa:invoke:electron:app:set-launch-at-login')
 /** Whether the app runs on the Wayland Ozone backend, where Electron cannot read the cursor position reliably. */
 export const electronAppIsWayland = defineInvokeEventa<boolean>('eventa:invoke:electron:app:is-wayland')
 export const electronAppIconGet = defineInvokeEventa<boolean>('eventa:invoke:electron:app-icon:get')

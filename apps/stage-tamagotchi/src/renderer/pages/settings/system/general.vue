@@ -8,7 +8,13 @@ import { onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
-import { electron, electronAppIconGet, electronAppIconSet } from '../../../../shared/eventa'
+import {
+  electron,
+  electronAppGetLaunchAtLogin,
+  electronAppIconGet,
+  electronAppIconSet,
+  electronAppSetLaunchAtLogin,
+} from '../../../../shared/eventa'
 import { useProactiveCompanionStore } from '../../../stores/proactive-companion'
 
 const { t } = useI18n()
@@ -22,9 +28,13 @@ const proactiveModeOptions = [
 ]
 const getHidden = useElectronEventaInvoke(electronAppIconGet)
 const setHidden = useElectronEventaInvoke(electronAppIconSet)
+const getLaunchAtLogin = useElectronEventaInvoke(electronAppGetLaunchAtLogin)
+const setLaunchAtLogin = useElectronEventaInvoke(electronAppSetLaunchAtLogin)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 // The value stays undefined on Linux, and the field does not show there.
 const hideAppIcon = shallowRef<boolean>()
+const launchAtLogin = shallowRef<boolean>()
+const launchAtLoginSupported = shallowRef(false)
 
 onMounted(async () => {
   try {
@@ -34,6 +44,15 @@ onMounted(async () => {
   catch {
     toast.error(t('tamagotchi.settings.pages.system.general.hide-app-icon.load-error'))
   }
+
+  try {
+    const state = await getLaunchAtLogin()
+    launchAtLogin.value = state.enabled
+    launchAtLoginSupported.value = state.supported
+  }
+  catch {
+    launchAtLoginSupported.value = false
+  }
 })
 
 async function updateHidden(hidden: boolean) {
@@ -42,6 +61,17 @@ async function updateHidden(hidden: boolean) {
   }
   catch {
     toast.error(t('tamagotchi.settings.pages.system.general.hide-app-icon.save-error'))
+  }
+}
+
+async function updateLaunchAtLogin(enabled: boolean) {
+  try {
+    const state = await setLaunchAtLogin(enabled)
+    launchAtLogin.value = state.enabled
+    launchAtLoginSupported.value = state.supported
+  }
+  catch {
+    launchAtLogin.value = false
   }
 }
 </script>
@@ -63,6 +93,13 @@ async function updateHidden(hidden: boolean) {
         v-model="proactiveMode"
         label="Chế độ đồng hành"
         :options="proactiveModeOptions"
+      />
+      <FieldCheckbox
+        v-if="launchAtLoginSupported && launchAtLogin !== undefined"
+        :model-value="launchAtLogin"
+        label="Tự chạy cùng Windows"
+        description="Khởi động AIRI tự động khi anh đăng nhập Windows để em có thể tự thức dậy và đồng hành mà không cần anh mở ứng dụng thủ công."
+        @update:model-value="updateLaunchAtLogin"
       />
       <FieldCheckbox
         v-if="hideAppIcon !== undefined"
