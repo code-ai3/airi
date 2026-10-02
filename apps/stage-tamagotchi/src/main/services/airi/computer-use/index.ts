@@ -6,7 +6,7 @@ import { binaryPath } from '@auv-js/cli/binary'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { app } from 'electron'
 
-import { computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
+import { computerUseDeleteArtifact, computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { createComputerUseRuntime } from './runtime'
 
@@ -29,6 +29,7 @@ export function setupComputerUse(context: ReturnType<typeof createContext>['cont
   }
   defineInvokeHandler(context, computerUseRun, input => getRuntime().run(input))
   defineInvokeHandler(context, computerUseReadImage, input => getRuntime().readImage(input))
+  defineInvokeHandler(context, computerUseDeleteArtifact, input => getRuntime().deleteArtifact(input))
   onAppBeforeQuit(async () => {
     stopped = true
     await runtime?.dispose()

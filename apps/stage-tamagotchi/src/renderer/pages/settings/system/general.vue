@@ -2,14 +2,24 @@
 import SettingsGeneralFields from '@proj-airi/stage-pages/components/settings-general-fields.vue'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { FieldCheckbox } from '@proj-airi/ui'
+import { FieldCheckbox, FieldSelect } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
 import { electron, electronAppIconGet, electronAppIconSet } from '../../../../shared/eventa'
+import { useProactiveCompanionStore } from '../../../stores/proactive-companion'
 
 const { t } = useI18n()
+const proactiveCompanion = useProactiveCompanionStore()
+const { enabled: proactiveEnabled, observationEnabled, mode: proactiveMode } = storeToRefs(proactiveCompanion)
+const proactiveModeOptions = [
+  { label: 'Bình thường', value: 'normal' },
+  { label: 'Tập trung', value: 'focus' },
+  { label: 'Im lặng', value: 'silent' },
+  { label: 'Ngủ', value: 'sleep' },
+]
 const getHidden = useElectronEventaInvoke(electronAppIconGet)
 const setHidden = useElectronEventaInvoke(electronAppIconSet)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
@@ -39,6 +49,21 @@ async function updateHidden(hidden: boolean) {
 <template>
   <SettingsGeneralFields>
     <template #additional-fields>
+      <FieldCheckbox
+        v-model="proactiveEnabled"
+        label="AIRI chủ động"
+        description="Cho phép AIRI tự thức dậy, hỏi thăm, nhắc việc, đi ngủ và xuất hiện lại theo ngữ cảnh."
+      />
+      <FieldCheckbox
+        v-model="observationEnabled"
+        label="Quan sát màn hình"
+        description="Cho phép AIRI xem ứng dụng/cửa sổ đang dùng và chụp ảnh màn hình tạm thời khi cần hiểu ngữ cảnh."
+      />
+      <FieldSelect
+        v-model="proactiveMode"
+        label="Chế độ đồng hành"
+        :options="proactiveModeOptions"
+      />
       <FieldCheckbox
         v-if="hideAppIcon !== undefined"
         :model-value="hideAppIcon"

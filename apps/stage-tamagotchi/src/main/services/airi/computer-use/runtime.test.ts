@@ -38,15 +38,18 @@ describe('computer use runtime', () => {
     expect(await runtime.readImage({ path })).toBe(`data:image/png;base64,${image.toString('base64')}`)
     const outside = join(directory, 'outside.png')
     await writeFile(outside, image)
-    await expect(runtime.readImage({ path: outside })).rejects.toThrow('Only screenshots')
+    await expect(runtime.readImage({ path: outside })).rejects.toThrow('Only artifacts')
+    await expect(runtime.deleteArtifact({ path: outside })).rejects.toThrow('Only artifacts')
     if (process.platform !== 'win32') {
       const link = join(directory, 'store', 'link.png')
       await symlink(outside, link)
-      await expect(runtime.readImage({ path: link })).rejects.toThrow('Only screenshots')
+      await expect(runtime.readImage({ path: link })).rejects.toThrow('Only artifacts')
     }
     const text = join(directory, 'store', 'text.png')
     await writeFile(text, 'not an image')
     await expect(runtime.readImage({ path: text })).rejects.toThrow('PNG or JPEG')
+    await runtime.deleteArtifact({ path })
+    await expect(runtime.readImage({ path })).rejects.toThrow()
   })
 
   it('rejects queued and future work after disposal', async () => {

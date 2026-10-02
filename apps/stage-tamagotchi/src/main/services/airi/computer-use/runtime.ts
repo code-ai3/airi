@@ -133,14 +133,19 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
     })
   }
 
+  async function resolveArtifactPath(path: string) {
+    const root = await realpath(options.storeRoot)
+    const target = await realpath(path)
+    const within = relative(root, target)
+    if (!within || isAbsolute(within) || within === '..' || within.startsWith(`..${sep}`))
+      throw new Error('Only artifacts from this AIRI computer-use store can be accessed.')
+    return target
+  }
+
   async function readImage(input: unknown): Promise<string> {
     const { path } = v.parse(v.object({ path: v.string() }), input)
     return enqueue(async () => {
-      const root = await realpath(options.storeRoot)
-      const target = await realpath(path)
-      const within = relative(root, target)
-      if (!within || isAbsolute(within) || within === '..' || within.startsWith(`..${sep}`))
-        throw new Error('Only screenshots from this AIRI computer-use store can be read.')
+      const target = await resolveArtifactPath(path)
       const info = await stat(target)
       if (!info.isFile() || info.size > 8 * 1024 * 1024)
         throw new Error('Screenshot must be a file smaller than 8 MiB.')
@@ -150,6 +155,14 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
       if (!png && !jpeg)
         throw new Error('Screenshot must be PNG or JPEG.')
       return `data:image/${png ? 'png' : 'jpeg'};base64,${data.toString('base64')}`
+    })
+  }
+
+  async function deleteArtifact(input: unknown): Promise<void> {
+    const { path } = v.parse(v.object({ path: v.string() }), input)
+    await enqueue(async () => {
+      const target = await resolveArtifactPath(path)
+      await rm(target, { force: true })
     })
   }
 
@@ -166,5 +179,5 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
     }
   }
 
-  return { run, readImage, dispose }
+  return { run, readImage, deleteArtifact, dispose }
 }

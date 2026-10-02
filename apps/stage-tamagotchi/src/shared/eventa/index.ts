@@ -451,9 +451,19 @@ export interface ElectronWindowLifecycleState {
   visible: boolean
 }
 
+export interface ElectronForegroundWindowContext {
+  available: boolean
+  appName?: string
+  processId?: number
+  title?: string
+  updatedAt: number
+  windowId?: number
+}
+
 export const electronWindowLifecycleChanged = defineEventa<ElectronWindowLifecycleState>('eventa:event:electron:window:lifecycle-changed')
 export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindowLifecycleState>('eventa:invoke:electron:window:get-lifecycle-state')
 export const electronGetSystemIdleTime = defineInvokeEventa<number>('eventa:invoke:electron:power-monitor:get-system-idle-time')
+export const electronGetForegroundWindowContext = defineInvokeEventa<ElectronForegroundWindowContext>('eventa:invoke:electron:desktop:get-foreground-window')
 export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
 export const electronWindowSetVisible = defineInvokeEventa<void, { visible: boolean, focus?: boolean }>('eventa:invoke:electron:window:set-visible')
 export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
