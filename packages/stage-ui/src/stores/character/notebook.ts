@@ -1,6 +1,9 @@
+import type {} from 'pinia-plugin-synced'
+
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
 export type NotebookEntryKind = 'note' | 'diary' | 'focus'
 
@@ -31,8 +34,17 @@ export interface ScheduledTask {
 }
 
 export const useCharacterNotebookStore = defineStore('character-notebook', () => {
-  const entries = ref<NotebookEntry[]>([])
-  const tasks = ref<ScheduledTask[]>([])
+  const persistenceOptions = { listenToStorageChanges: false, deep: true }
+  const entries = useLocalStorageManualReset<NotebookEntry[]>(
+    'companion/notebook/entries/v1',
+    [],
+    persistenceOptions,
+  )
+  const tasks = useLocalStorageManualReset<ScheduledTask[]>(
+    'companion/notebook/tasks/v1',
+    [],
+    persistenceOptions,
+  )
 
   const partitionDiary = computed(() => entries.value.filter(entry => entry.kind === 'diary'))
   const partitionFocus = computed(() => entries.value.filter(entry => entry.kind === 'focus'))
@@ -101,7 +113,7 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     if (!task)
       return
 
-    task.status = 'queued'
+    task.status = options?.dueAt ? 'scheduled' : 'queued'
     task.dueAt = options?.dueAt
     task.updatedAt = Date.now()
     task.metadata = {
@@ -122,9 +134,9 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
 
   function getDueTasks(now: number, windowMs: number) {
     return tasks.value.filter((task) => {
-      if (task.status === 'done' || task.status === 'dropped')
+      if (task.status !== 'scheduled' || typeof task.dueAt !== 'number')
         return false
-      const dueAt = task.dueAt ?? now
+      const dueAt = task.dueAt
       if (dueAt > now + windowMs)
         return false
       if (typeof task.nextNotifyAt === 'number' && task.nextNotifyAt > now)
@@ -147,4 +159,8 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     markTaskNotified,
     getDueTasks,
   }
+}, {
+  synced: {
+    state: true,
+  },
 })

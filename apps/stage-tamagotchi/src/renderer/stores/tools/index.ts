@@ -1,5 +1,6 @@
 export {
   artistryToolReferences,
+  companionTaskToolReferences,
   computerUseToolReferences,
   useTamagotchiBuiltinToolsStore,
   widgetToolReferences,
