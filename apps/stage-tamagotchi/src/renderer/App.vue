@@ -66,6 +66,7 @@ import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
+import { useProactiveCompanionStore } from './stores/proactive-companion'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import {
@@ -128,6 +129,7 @@ function createFullStageRuntime() {
   const cardStore = useAiriCardStore()
   const serverChannelStore = useModsServerChannelStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
+  const proactiveCompanionStore = useProactiveCompanionStore()
   const inferencePreload = useInferencePreload()
   const pluginHostInspectorStore = usePluginHostInspectorStore()
   const stageWindowLifecycleStore = useStageWindowLifecycleStore()
@@ -141,6 +143,7 @@ function createFullStageRuntime() {
 
   let stopAuthenticatedSetup: (() => void) | undefined
   let stopLoggedOutSetup: (() => void) | undefined
+  let stopProactiveLeadership: (() => void) | undefined
 
   async function removeAuthenticationProviderConfiguration() {
     if (!syncedPinia.isLeader())
@@ -178,6 +181,21 @@ function createFullStageRuntime() {
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
   const usesGodotStage = initialRoutePath === '/' || initialRoutePath.startsWith('/settings')
   const isWidgetsWindow = initialRoutePath === '/widgets'
+  const isMainStageWindow = initialRoutePath === '/'
+
+  function syncProactiveCompanionLeadership(isLeader = syncedPinia.isLeader()) {
+    if (isLeader && isMainStageWindow) {
+      proactiveCompanionStore.initialize()
+      return
+    }
+
+    proactiveCompanionStore.dispose()
+  }
+
+  function registerProactiveCompanionLeadership() {
+    stopProactiveLeadership ??= syncedPinia.onLeadershipChange(syncProactiveCompanionLeadership)
+    syncProactiveCompanionLeadership()
+  }
 
   function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
     if (state.state === 'running') {
@@ -298,6 +316,8 @@ function createFullStageRuntime() {
       if (!isWidgetsWindow) {
         characterOrchestratorStore.initialize()
         await startTrackingCursorPoint()
+        if (isMainStageWindow)
+          registerProactiveCompanionLeadership()
       }
 
       defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
@@ -317,6 +337,8 @@ function createFullStageRuntime() {
     dispose() {
       stopAuthenticatedSetup?.()
       stopLoggedOutSetup?.()
+      stopProactiveLeadership?.()
+      proactiveCompanionStore.dispose()
       contextBridgeStore.dispose()
     },
   }

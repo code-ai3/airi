@@ -87,6 +87,9 @@ export async function setupMainWindow(params: {
     webPreferences: {
       preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
       sandbox: false,
+      // The companion must keep lightweight wake/sleep timers alive while its
+      // transparent character window is hidden.
+      backgroundThrottling: false,
     },
     // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
     //

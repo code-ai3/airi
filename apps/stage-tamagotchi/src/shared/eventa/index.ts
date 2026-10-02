@@ -453,7 +453,9 @@ export interface ElectronWindowLifecycleState {
 
 export const electronWindowLifecycleChanged = defineEventa<ElectronWindowLifecycleState>('eventa:event:electron:window:lifecycle-changed')
 export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindowLifecycleState>('eventa:invoke:electron:window:get-lifecycle-state')
+export const electronGetSystemIdleTime = defineInvokeEventa<number>('eventa:invoke:electron:power-monitor:get-system-idle-time')
 export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
+export const electronWindowSetVisible = defineInvokeEventa<void, { visible: boolean, focus?: boolean }>('eventa:invoke:electron:window:set-visible')
 export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
 /** Whether the app runs on the Wayland Ozone backend, where Electron cannot read the cursor position reliably. */
