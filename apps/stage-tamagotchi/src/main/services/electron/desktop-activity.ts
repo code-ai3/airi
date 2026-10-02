@@ -3,8 +3,9 @@ import type { BrowserWindow } from 'electron'
 
 import type { ElectronForegroundWindowContext } from '../../../shared/eventa'
 
-import { execFile } from 'node:child_process'
 import process from 'node:process'
+
+import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
 import { defineInvokeHandler } from '@moeru/eventa'
