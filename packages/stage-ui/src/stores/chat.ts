@@ -32,7 +32,7 @@ import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
-import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { createMinecraftContext, createPersonalMemoryContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { describeChatImages, replaceToolResultImages } from './chat/image-projection'
 import { useChatSessionStore } from './chat/session-store'
@@ -41,6 +41,7 @@ import { useContextObservabilityStore } from './devtools/context-observability'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { usePersonalMemoryStore } from './modules/personal-memory'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { executeToolCallRerun } from './tool-call-rerun'
@@ -188,6 +189,7 @@ export const useChatStore = defineStore('chat', () => {
   // without its paired prompt-injection defense.
   useWebSearchStore()
   const consciousnessStore = useConsciousnessStore()
+  const personalMemoryStore = usePersonalMemoryStore()
   const chatVision = useChatVision()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
@@ -461,6 +463,7 @@ export const useChatStore = defineStore('chat', () => {
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
+      () => createPersonalMemoryContext(personalMemoryStore.contextText),
       createMinecraftContext,
     ],
     createId: nanoid,
@@ -471,6 +474,7 @@ export const useChatStore = defineStore('chat', () => {
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
     onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
+      personalMemoryStore.learnFromUserMessage(messageText)
       analyticsHooks.onUserMessageAppended?.({
         sessionId,
         message,
