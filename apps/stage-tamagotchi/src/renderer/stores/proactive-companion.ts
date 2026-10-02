@@ -8,7 +8,6 @@ import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/charac
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useLocalStorage } from '@vueuse/core'
-import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
@@ -257,7 +256,7 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
   }
 
   function createNotifyEvent(companionEvent: string, headline: string, note: string): WebSocketEventOf<'spark:notify'> {
-    const eventId = nanoid()
+    const eventId = globalThis.crypto.randomUUID()
     return {
       type: 'spark:notify',
       source: 'character:proactive-companion',
