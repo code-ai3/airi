@@ -444,6 +444,147 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
     )
   }
 
+  async function handleWorkflowStep() {
+    const workflow = notebookStore.getNextRunnableWorkflow()
+    if (!workflow)
+      return false
+
+    notebookStore.startWorkflow(workflow.id)
+    const step = notebookStore.getCurrentWorkflowStep(workflow.id)
+    if (!step)
+      return false
+
+    notebookStore.markWorkflowStepStarted(workflow.id, step.id)
+    phase.value = 'working'
+
+    try {
+      if (step.action.type === 'safe-action') {
+        const result = await runSafeTaskAction(step.action.action)
+        notebookStore.markWorkflowStepResult(workflow.id, step.id, {
+          ok: true,
+          result: result.message,
+        })
+
+        if (workflow.status === 'completed' && mode.value !== 'silent') {
+          await speak(
+            'workflow-complete',
+            'Multi-step goal completed',
+            [
+              `Em đã làm xong mục tiêu anh giao: ${workflow.goal}.`,
+              'Báo kết quả thật ngắn gọn. Không nói là mọi thứ thành công nếu bước cuối không chứng minh được điều đó.',
+            ].join('\n'),
+            {
+              expectsReply: false,
+              phase: 'caring',
+            },
+          )
+        }
+
+        phase.value = 'idle'
+        return true
+      }
+
+      if (step.requiresApproval) {
+        const approval = notebookStore.requestApproval({
+          title: `[${workflow.goal}] ${step.title}`,
+          reason: [
+            step.details,
+            `Đây là bước ${workflow.currentStepIndex + 1}/${workflow.steps.length} của một công việc nhiều bước.`,
+            'AIRI sẽ chỉ thực hiện đúng lệnh hiển thị một lần sau khi anh duyệt.',
+          ].filter(Boolean).join(' '),
+          risk: step.approvalRisk,
+          action: {
+            type: 'computer-use',
+            argv: step.action.argv,
+          },
+          workflowId: workflow.id,
+          workflowStepId: step.id,
+        })
+
+        notebookStore.markWorkflowStepWaitingApproval(workflow.id, step.id, approval.id)
+
+        if (mode.value !== 'silent') {
+          await speak(
+            'workflow-approval-needed',
+            'Workflow needs approval',
+            [
+              `Em đang làm mục tiêu: ${workflow.goal}.`,
+              `Tới bước "${step.title}" thì em cần anh cho phép trước vì bước này sẽ thay đổi trạng thái trên máy.`,
+              'Nói ngắn gọn và bảo anh có thể xem chính xác hành động trong Trung tâm quyền hạn AIRI.',
+            ].join('\n'),
+            {
+              expectsReply: false,
+              phase: 'caring',
+            },
+          )
+        }
+
+        phase.value = 'idle'
+        return true
+      }
+
+      const result = await runComputerUse({ argv: step.action.argv })
+      const output = stringifyObservation(result.output, 1_500)
+      const details = [
+        `argv: ${step.action.argv.join(' ')}`,
+        output ? `output: ${output}` : '',
+        result.stderr ? `stderr: ${result.stderr.slice(0, 1_000)}` : '',
+      ].filter(Boolean).join('\n')
+
+      if (result.exitCode !== 0)
+        throw new Error(details || `Computer-use exited with code ${result.exitCode}`)
+
+      notebookStore.markWorkflowStepResult(workflow.id, step.id, {
+        ok: true,
+        result: details || 'Read-only computer-use step completed.',
+      })
+
+      if (workflow.status === 'completed' && mode.value !== 'silent') {
+        await speak(
+          'workflow-complete',
+          'Multi-step goal completed',
+          [
+            `Em đã đi hết kế hoạch cho mục tiêu: ${workflow.goal}.`,
+            'Báo kết quả ngắn gọn dựa trên dữ liệu thực tế của các bước, không tự suy diễn thêm.',
+          ].join('\n'),
+          {
+            expectsReply: false,
+            phase: 'caring',
+          },
+        )
+      }
+
+      phase.value = 'idle'
+      return true
+    }
+    catch (error) {
+      const message = errorMessageFrom(error) ?? 'Unknown workflow step error'
+      notebookStore.markWorkflowStepResult(workflow.id, step.id, {
+        ok: false,
+        result: message,
+      })
+
+      if (mode.value !== 'silent') {
+        await speak(
+          'workflow-paused',
+          'Multi-step workflow paused',
+          [
+            `Em đang làm mục tiêu: ${workflow.goal} nhưng bị kẹt ở bước "${step.title}".`,
+            `Lý do kỹ thuật: ${message}`,
+            'Nói ngắn gọn rằng em đã tạm dừng thay vì tự thử hành động mạnh khác.',
+          ].join('\n'),
+          {
+            expectsReply: false,
+            phase: 'caring',
+          },
+        )
+      }
+
+      phase.value = 'idle'
+      return true
+    }
+  }
+
   async function handleApprovedComputerAction() {
     const approval = notebookStore.getNextApprovedApproval()
     if (!approval)
@@ -754,6 +895,9 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
         return
 
       if (await handleApprovedComputerAction())
+        return
+
+      if (await handleWorkflowStep())
         return
 
       if (await handleDueAutonomousTask(now))

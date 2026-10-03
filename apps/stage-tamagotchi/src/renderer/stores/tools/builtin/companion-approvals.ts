@@ -31,6 +31,8 @@ function serializeApproval(approval: CompanionApprovalRequest) {
     risk: approval.risk,
     status: approval.status,
     action: approval.action,
+    workflowId: approval.workflowId,
+    workflowStepId: approval.workflowStepId,
     createdAt: new Date(approval.createdAt).toISOString(),
     updatedAt: new Date(approval.updatedAt).toISOString(),
     resolvedAt: typeof approval.resolvedAt === 'number' ? new Date(approval.resolvedAt).toISOString() : undefined,

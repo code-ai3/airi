@@ -2,6 +2,7 @@ export {
   artistryToolReferences,
   companionApprovalToolReferences,
   companionTaskToolReferences,
+  companionWorkflowToolReferences,
   computerUseToolReferences,
   useTamagotchiBuiltinToolsStore,
   widgetToolReferences,

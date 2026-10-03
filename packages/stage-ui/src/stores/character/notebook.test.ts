@@ -163,4 +163,140 @@ describe('character notebook persistence and due tasks', () => {
     expect(first.status).toBe('rejected')
     expect(store.activityLog.some(item => item.kind === 'approval-rejected')).toBe(true)
   })
+
+  it('runs a multi-step workflow in order and completes after the final step', () => {
+    const store = useCharacterNotebookStore()
+    const workflow = store.createWorkflow({
+      goal: 'Mở tài liệu rồi kiểm tra màn hình',
+      steps: [
+        {
+          title: 'Mở tài liệu',
+          action: {
+            type: 'safe-action',
+            action: { type: 'open-url', url: 'https://example.com' },
+          },
+          requiresApproval: false,
+          approvalRisk: 'medium',
+        },
+        {
+          title: 'Chụp màn hình để kiểm tra',
+          action: {
+            type: 'computer-use',
+            argv: ['invoke', 'display.capture'],
+          },
+          requiresApproval: false,
+          approvalRisk: 'medium',
+        },
+      ],
+    })
+
+    expect(workflow.status).toBe('queued')
+    expect(store.getNextRunnableWorkflow()?.id).toBe(workflow.id)
+
+    store.startWorkflow(workflow.id)
+    const firstStep = store.getCurrentWorkflowStep(workflow.id)!
+    store.markWorkflowStepStarted(workflow.id, firstStep.id)
+    store.markWorkflowStepResult(workflow.id, firstStep.id, { ok: true, result: 'opened' })
+
+    expect(workflow.status).toBe('running')
+    expect(workflow.currentStepIndex).toBe(1)
+    expect(workflow.steps[0]?.status).toBe('completed')
+
+    const secondStep = store.getCurrentWorkflowStep(workflow.id)!
+    store.markWorkflowStepStarted(workflow.id, secondStep.id)
+    store.markWorkflowStepResult(workflow.id, secondStep.id, { ok: true, result: 'captured' })
+
+    expect(workflow.status).toBe('completed')
+    expect(workflow.currentStepIndex).toBe(2)
+    expect(workflow.completedAt).toBeTypeOf('number')
+  })
+
+  it('pauses a workflow at an approval step and continues only after approval succeeds', () => {
+    const store = useCharacterNotebookStore()
+    const workflow = store.createWorkflow({
+      goal: 'Điền biểu mẫu',
+      steps: [
+        {
+          title: 'Bấm vào ô nhập',
+          action: {
+            type: 'computer-use',
+            argv: ['invoke', 'input.click', '--x', '100', '--y', '200'],
+          },
+          requiresApproval: true,
+          approvalRisk: 'high',
+        },
+        {
+          title: 'Kiểm tra màn hình',
+          action: {
+            type: 'computer-use',
+            argv: ['invoke', 'display.capture'],
+          },
+          requiresApproval: false,
+          approvalRisk: 'medium',
+        },
+      ],
+    })
+
+    store.startWorkflow(workflow.id)
+    const step = store.getCurrentWorkflowStep(workflow.id)!
+    const approval = store.requestApproval({
+      title: step.title,
+      risk: step.approvalRisk,
+      action: {
+        type: 'computer-use',
+        argv: ['invoke', 'input.click', '--x', '100', '--y', '200'],
+      },
+      workflowId: workflow.id,
+      workflowStepId: step.id,
+    })
+    store.markWorkflowStepWaitingApproval(workflow.id, step.id, approval.id)
+
+    expect(workflow.status).toBe('waiting-approval')
+    expect(store.getNextRunnableWorkflow()).toBeUndefined()
+
+    store.resolveApproval(approval.id, 'approved')
+    expect(workflow.status).toBe('waiting-approval')
+
+    store.markApprovalResult(approval.id, { ok: true, result: 'clicked' })
+    expect(workflow.status).toBe('running')
+    expect(workflow.currentStepIndex).toBe(1)
+    expect(workflow.steps[0]?.status).toBe('completed')
+  })
+
+  it('cancels a workflow and invalidates its unused approvals', () => {
+    const store = useCharacterNotebookStore()
+    const workflow = store.createWorkflow({
+      goal: 'Thao tác thử',
+      steps: [{
+        title: 'Bấm nút',
+        action: {
+          type: 'computer-use',
+          argv: ['invoke', 'input.click', '--x', '1', '--y', '1'],
+        },
+        requiresApproval: true,
+        approvalRisk: 'high',
+      }],
+    })
+
+    store.startWorkflow(workflow.id)
+    const step = store.getCurrentWorkflowStep(workflow.id)!
+    const approval = store.requestApproval({
+      title: step.title,
+      risk: 'high',
+      action: {
+        type: 'computer-use',
+        argv: ['invoke', 'input.click', '--x', '1', '--y', '1'],
+      },
+      workflowId: workflow.id,
+      workflowStepId: step.id,
+    })
+    store.markWorkflowStepWaitingApproval(workflow.id, step.id, approval.id)
+    store.resolveApproval(approval.id, 'approved')
+
+    store.cancelWorkflow(workflow.id)
+
+    expect(workflow.status).toBe('cancelled')
+    expect(approval.status).toBe('rejected')
+    expect(store.getNextApprovedApproval()).toBeUndefined()
+  })
 })

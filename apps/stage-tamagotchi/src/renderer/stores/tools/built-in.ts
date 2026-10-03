@@ -6,6 +6,7 @@ import { defineStore } from 'pinia'
 
 import { companionApprovalTools } from './builtin/companion-approvals'
 import { companionTaskTools } from './builtin/companion-tasks'
+import { companionWorkflowTools } from './builtin/companion-workflows'
 import { computerUseTools } from './builtin/computer-use'
 import { imageJournalTools } from './builtin/image-journal'
 import { weatherTools } from './builtin/weather'
@@ -23,9 +24,17 @@ export const companionApprovalToolReferences = [
   { name: 'companion_approval_list' },
 ] satisfies ChatToolReference[]
 
+export const companionWorkflowToolReferences = [
+  { name: 'companion_workflow_create' },
+  { name: 'companion_workflow_list' },
+  { name: 'companion_workflow_cancel' },
+  { name: 'companion_workflow_resume' },
+] satisfies ChatToolReference[]
+
 const companionDefaultToolReferences = [
   ...companionTaskToolReferences,
   ...companionApprovalToolReferences,
+  ...companionWorkflowToolReferences,
 ] satisfies ChatToolReference[]
 
 export const computerUseToolReferences = [
@@ -57,6 +66,7 @@ export const useTamagotchiBuiltinToolsStore = defineStore('tamagotchi-builtin-to
     const tools = (await Promise.all([
       companionTaskTools(),
       companionApprovalTools(),
+      companionWorkflowTools(),
       imageJournalTools(),
       widgetsTools(),
       weatherTools(),

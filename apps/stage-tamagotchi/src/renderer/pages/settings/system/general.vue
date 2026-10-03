@@ -25,6 +25,9 @@ const { enabled: proactiveEnabled, observationEnabled, mode: proactiveMode } = s
 const approvalQueue = computed(() => notebook.approvals
   .filter(approval => approval.status === 'pending' || approval.status === 'approved')
   .toSorted((a, b) => b.updatedAt - a.updatedAt))
+const openWorkflows = computed(() => notebook.workflows
+  .filter(workflow => workflow.status !== 'completed' && workflow.status !== 'cancelled')
+  .toSorted((a, b) => b.updatedAt - a.updatedAt))
 const recentActivity = computed(() => notebook.activityLog
   .toSorted((a, b) => b.createdAt - a.createdAt)
   .slice(0, 20))
@@ -100,6 +103,42 @@ function approvalStatusLabel(status: string) {
   return status
 }
 
+function workflowStatusLabel(status: string) {
+  switch (status) {
+    case 'queued':
+      return 'Đang xếp hàng'
+    case 'running':
+      return 'Đang làm'
+    case 'waiting-approval':
+      return 'Chờ anh duyệt'
+    case 'paused':
+      return 'Tạm dừng'
+    case 'failed':
+      return 'Bị lỗi'
+    default:
+      return status
+  }
+}
+
+function workflowStepStatusLabel(status: string) {
+  switch (status) {
+    case 'pending':
+      return 'Chưa làm'
+    case 'running':
+      return 'Đang làm'
+    case 'waiting-approval':
+      return 'Chờ duyệt'
+    case 'completed':
+      return 'Đã xong'
+    case 'failed':
+      return 'Bị kẹt'
+    case 'skipped':
+      return 'Đã bỏ qua'
+    default:
+      return status
+  }
+}
+
 function formatActivityTime(timestamp: number) {
   return new Date(timestamp).toLocaleString('vi-VN', {
     hour: '2-digit',
@@ -123,6 +162,18 @@ function resolveApproval(approvalId: string, decision: 'approved' | 'rejected') 
 function clearResolvedApprovals() {
   notebook.clearResolvedApprovals()
   toast.success('Đã dọn các yêu cầu đã xử lý.')
+}
+
+function resumeWorkflow(workflowId: string) {
+  const workflow = notebook.resumeWorkflow(workflowId)
+  if (workflow)
+    toast.success('AIRI sẽ tiếp tục từ bước đang bị dừng.')
+}
+
+function cancelWorkflow(workflowId: string) {
+  const workflow = notebook.cancelWorkflow(workflowId)
+  if (workflow)
+    toast.info('Đã hủy công việc nhiều bước và vô hiệu các quyền chưa dùng.')
 }
 
 function clearActivityLog() {
@@ -224,6 +275,93 @@ function clearActivityLog() {
     </div>
     <p v-else class="airi-empty-state">
       Hiện không có hành động nào đang chờ anh duyệt.
+    </p>
+
+    <div class="airi-section-heading airi-workflow-heading">
+      <div>
+        <h3>Multi-step Worker</h3>
+        <p>AIRI tự đi từng bước, tự làm phần an toàn và dừng đúng chỗ cần anh cho phép.</p>
+      </div>
+    </div>
+
+    <div v-if="openWorkflows.length" class="airi-stack">
+      <article
+        v-for="workflow in openWorkflows"
+        :key="workflow.id"
+        class="airi-workflow-card"
+        :data-status="workflow.status"
+      >
+        <div class="airi-card-top">
+          <div>
+            <strong>{{ workflow.goal }}</strong>
+            <p v-if="workflow.summary" class="airi-card-description">
+              {{ workflow.summary }}
+            </p>
+          </div>
+          <span class="airi-badge" :data-status="workflow.status">
+            {{ workflowStatusLabel(workflow.status) }}
+          </span>
+        </div>
+
+        <div class="airi-workflow-progress">
+          <span>
+            Bước {{ Math.min(workflow.currentStepIndex + 1, workflow.steps.length) }}/{{ workflow.steps.length }}
+          </span>
+          <div class="airi-progress-track">
+            <span
+              class="airi-progress-fill"
+              :style="{ width: `${Math.round((workflow.steps.filter(step => step.status === 'completed').length / workflow.steps.length) * 100)}%` }"
+            />
+          </div>
+        </div>
+
+        <div class="airi-workflow-steps">
+          <div
+            v-for="(step, index) in workflow.steps"
+            :key="step.id"
+            class="airi-workflow-step"
+            :data-status="step.status"
+          >
+            <span class="airi-step-index">{{ index + 1 }}</span>
+            <div class="airi-step-copy">
+              <div class="airi-step-title">
+                <strong>{{ step.title }}</strong>
+                <span>{{ workflowStepStatusLabel(step.status) }}</span>
+              </div>
+              <p v-if="step.details">
+                {{ step.details }}
+              </p>
+              <code v-if="step.action.type === 'computer-use'" class="airi-step-command">
+                {{ step.action.argv.join(' ') }}
+              </code>
+              <p v-if="step.requiresApproval" class="airi-step-approval-note">
+                Bước này sẽ dừng để xin phép trước khi thực hiện.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <p v-if="workflow.lastError" class="airi-workflow-error">
+          {{ workflow.lastError }}
+        </p>
+
+        <div class="airi-approval-actions">
+          <button
+            v-if="workflow.status === 'paused' || workflow.status === 'failed'"
+            class="airi-button airi-button-approve"
+            type="button"
+            @click="resumeWorkflow(workflow.id)"
+          >
+            Thử lại từ bước này
+          </button>
+          <button class="airi-button airi-button-reject" type="button" @click="cancelWorkflow(workflow.id)">
+            Hủy công việc
+          </button>
+        </div>
+      </article>
+    </div>
+    <p v-else class="airi-empty-state">
+      Chưa có công việc nhiều bước nào đang chạy.
     </p>
 
     <div class="airi-section-heading airi-activity-heading">
@@ -392,8 +530,132 @@ function clearActivityLog() {
   opacity: 1;
 }
 
+.airi-workflow-heading,
 .airi-activity-heading {
   margin-top: 24px;
+}
+
+.airi-workflow-card {
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: 12px;
+  padding: 14px;
+  background: color-mix(in srgb, currentColor 2%, transparent);
+}
+
+.airi-workflow-card[data-status='waiting-approval'] {
+  border-color: rgba(217, 119, 6, 0.45);
+}
+
+.airi-workflow-card[data-status='paused'],
+.airi-workflow-card[data-status='failed'] {
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+.airi-workflow-progress {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.airi-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.16);
+}
+
+.airi-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0.65;
+  transition: width 180ms ease;
+}
+
+.airi-workflow-steps {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.airi-workflow-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.airi-workflow-step[data-status='completed'] {
+  opacity: 0.62;
+}
+
+.airi-workflow-step[data-status='waiting-approval'] {
+  border-color: rgba(217, 119, 6, 0.4);
+}
+
+.airi-workflow-step[data-status='failed'] {
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+.airi-step-index {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.14);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.airi-step-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.airi-step-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.airi-step-title > span {
+  flex: 0 0 auto;
+  opacity: 0.55;
+  font-size: 11px;
+}
+
+.airi-step-copy p {
+  margin: 4px 0 0;
+  opacity: 0.7;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.airi-step-command {
+  display: block;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  opacity: 0.68;
+  font-size: 11px;
+}
+
+.airi-step-approval-note {
+  font-weight: 600;
+}
+
+.airi-workflow-error {
+  margin: 10px 0 0;
+  color: #dc2626;
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .airi-activity-item {

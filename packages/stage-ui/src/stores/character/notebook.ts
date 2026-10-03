@@ -39,6 +39,8 @@ export interface CompanionApprovalRequest {
   risk: CompanionApprovalRisk
   action: CompanionComputerUseAction
   status: CompanionApprovalStatus
+  workflowId?: string
+  workflowStepId?: string
   createdAt: number
   updatedAt: number
   resolvedAt?: number
@@ -56,6 +58,55 @@ export interface CompanionActivityLogEntry {
   details?: string
   status: CompanionActivityStatus
   createdAt: number
+  metadata?: Record<string, unknown>
+}
+
+export type CompanionWorkflowStatus
+  = | 'queued'
+    | 'running'
+    | 'waiting-approval'
+    | 'paused'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+
+export type CompanionWorkflowStepStatus
+  = | 'pending'
+    | 'running'
+    | 'waiting-approval'
+    | 'completed'
+    | 'failed'
+    | 'skipped'
+
+export type CompanionWorkflowStepAction
+  = | { type: 'safe-action', action: TaskSafeAction }
+    | { type: 'computer-use', argv: string[] }
+
+export interface CompanionWorkflowStep {
+  id: string
+  title: string
+  details?: string
+  action: CompanionWorkflowStepAction
+  status: CompanionWorkflowStepStatus
+  requiresApproval: boolean
+  approvalRisk: CompanionApprovalRisk
+  approvalId?: string
+  startedAt?: number
+  completedAt?: number
+  lastResult?: string
+}
+
+export interface CompanionWorkflow {
+  id: string
+  goal: string
+  summary?: string
+  status: CompanionWorkflowStatus
+  steps: CompanionWorkflowStep[]
+  currentStepIndex: number
+  createdAt: number
+  updatedAt: number
+  completedAt?: number
+  lastError?: string
   metadata?: Record<string, unknown>
 }
 
@@ -96,6 +147,11 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
   )
   const activityLog = useLocalStorageManualReset<CompanionActivityLogEntry[]>(
     'companion/notebook/activity/v1',
+    [],
+    persistenceOptions,
+  )
+  const workflows = useLocalStorageManualReset<CompanionWorkflow[]>(
+    'companion/notebook/workflows/v1',
     [],
     persistenceOptions,
   )
@@ -244,17 +300,264 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     return entry
   }
 
+  function createWorkflow(payload: {
+    goal: string
+    summary?: string
+    steps: Array<{
+      title: string
+      details?: string
+      action: CompanionWorkflowStepAction
+      requiresApproval: boolean
+      approvalRisk?: CompanionApprovalRisk
+    }>
+    metadata?: Record<string, unknown>
+  }) {
+    if (!payload.steps.length)
+      throw new Error('Workflow requires at least one step.')
+
+    const now = Date.now()
+    const workflow: CompanionWorkflow = {
+      id: nanoid(),
+      goal: payload.goal,
+      summary: payload.summary,
+      status: 'queued',
+      steps: payload.steps.map(step => ({
+        id: nanoid(),
+        title: step.title,
+        details: step.details,
+        action: step.action,
+        status: 'pending',
+        requiresApproval: step.requiresApproval,
+        approvalRisk: step.approvalRisk ?? 'high',
+      })),
+      currentStepIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+      metadata: payload.metadata,
+    }
+
+    workflows.value.push(workflow)
+    appendActivity({
+      kind: 'workflow-created',
+      title: `AIRI đã lập kế hoạch: ${workflow.goal}`,
+      details: workflow.summary ?? `${workflow.steps.length} bước`,
+      status: 'info',
+      metadata: {
+        workflowId: workflow.id,
+        stepCount: workflow.steps.length,
+      },
+    })
+    return workflow
+  }
+
+  function getNextRunnableWorkflow() {
+    const runningWorkflow = workflows.value
+      .filter(workflow => workflow.status === 'running')
+      .toSorted((a, b) => a.updatedAt - b.updatedAt)[0]
+    if (runningWorkflow)
+      return runningWorkflow
+
+    if (workflows.value.some(workflow => workflow.status === 'waiting-approval'))
+      return undefined
+
+    return workflows.value
+      .filter(workflow => workflow.status === 'queued')
+      .toSorted((a, b) => a.createdAt - b.createdAt)[0]
+  }
+
+  function getCurrentWorkflowStep(workflowId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow)
+      return undefined
+    return workflow.steps[workflow.currentStepIndex]
+  }
+
+  function startWorkflow(workflowId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow || (workflow.status !== 'queued' && workflow.status !== 'running'))
+      return workflow
+
+    if (workflow.status === 'queued') {
+      workflow.status = 'running'
+      workflow.updatedAt = Date.now()
+      appendActivity({
+        kind: 'workflow-started',
+        title: `AIRI bắt đầu mục tiêu: ${workflow.goal}`,
+        details: workflow.summary,
+        status: 'info',
+        metadata: { workflowId: workflow.id },
+      })
+    }
+    return workflow
+  }
+
+  function markWorkflowStepStarted(workflowId: string, stepId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    const step = workflow?.steps.find(item => item.id === stepId)
+    if (!workflow || !step)
+      return
+
+    const now = Date.now()
+    workflow.status = 'running'
+    workflow.updatedAt = now
+    step.status = 'running'
+    step.startedAt ??= now
+    appendActivity({
+      kind: 'workflow-step-started',
+      title: `Bước ${workflow.currentStepIndex + 1}: ${step.title}`,
+      details: step.details,
+      status: 'info',
+      metadata: {
+        workflowId: workflow.id,
+        workflowStepId: step.id,
+      },
+    })
+  }
+
+  function markWorkflowStepWaitingApproval(workflowId: string, stepId: string, approvalId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    const step = workflow?.steps.find(item => item.id === stepId)
+    if (!workflow || !step)
+      return
+
+    step.status = 'waiting-approval'
+    step.approvalId = approvalId
+    workflow.status = 'waiting-approval'
+    workflow.updatedAt = Date.now()
+  }
+
+  function markWorkflowStepResult(workflowId: string, stepId: string, payload: { ok: boolean, result: string }) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    const step = workflow?.steps.find(item => item.id === stepId)
+    if (!workflow || !step)
+      return
+
+    const now = Date.now()
+    step.lastResult = payload.result
+    step.completedAt = now
+    workflow.updatedAt = now
+
+    if (!payload.ok) {
+      step.status = 'failed'
+      workflow.status = 'paused'
+      workflow.lastError = payload.result
+      appendActivity({
+        kind: 'workflow-step-failed',
+        title: `Bước bị dừng: ${step.title}`,
+        details: payload.result,
+        status: 'error',
+        metadata: {
+          workflowId: workflow.id,
+          workflowStepId: step.id,
+        },
+      })
+      return
+    }
+
+    step.status = 'completed'
+    step.approvalId = undefined
+    workflow.currentStepIndex += 1
+    workflow.lastError = undefined
+
+    if (workflow.currentStepIndex >= workflow.steps.length) {
+      workflow.status = 'completed'
+      workflow.completedAt = now
+      appendActivity({
+        kind: 'workflow-completed',
+        title: `AIRI đã hoàn thành mục tiêu: ${workflow.goal}`,
+        details: payload.result,
+        status: 'success',
+        metadata: { workflowId: workflow.id },
+      })
+      return
+    }
+
+    workflow.status = 'running'
+    appendActivity({
+      kind: 'workflow-step-completed',
+      title: `Đã xong bước: ${step.title}`,
+      details: payload.result,
+      status: 'success',
+      metadata: {
+        workflowId: workflow.id,
+        workflowStepId: step.id,
+        nextStepIndex: workflow.currentStepIndex,
+      },
+    })
+  }
+
+  function resumeWorkflow(workflowId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow || (workflow.status !== 'paused' && workflow.status !== 'failed'))
+      return workflow
+
+    const step = workflow.steps[workflow.currentStepIndex]
+    if (step && step.status === 'failed') {
+      step.status = 'pending'
+      step.approvalId = undefined
+      step.startedAt = undefined
+      step.completedAt = undefined
+      step.lastResult = undefined
+    }
+
+    workflow.status = 'running'
+    workflow.lastError = undefined
+    workflow.updatedAt = Date.now()
+    appendActivity({
+      kind: 'workflow-resumed',
+      title: `Tiếp tục mục tiêu: ${workflow.goal}`,
+      status: 'info',
+      metadata: { workflowId: workflow.id },
+    })
+    return workflow
+  }
+
+  function cancelWorkflow(workflowId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow || ['completed', 'cancelled'].includes(workflow.status))
+      return workflow
+
+    const now = Date.now()
+    workflow.status = 'cancelled'
+    workflow.updatedAt = now
+    for (const step of workflow.steps) {
+      if (step.status === 'pending' || step.status === 'running' || step.status === 'waiting-approval')
+        step.status = 'skipped'
+    }
+
+    for (const approval of approvals.value) {
+      if (approval.workflowId !== workflow.id || (approval.status !== 'pending' && approval.status !== 'approved'))
+        continue
+      approval.status = 'rejected'
+      approval.resolvedAt = now
+      approval.updatedAt = now
+      approval.result = 'Workflow cancelled before execution.'
+    }
+
+    appendActivity({
+      kind: 'workflow-cancelled',
+      title: `Đã hủy mục tiêu: ${workflow.goal}`,
+      status: 'warning',
+      metadata: { workflowId: workflow.id },
+    })
+    return workflow
+  }
+
   function requestApproval(payload: {
     title: string
     reason?: string
     risk: CompanionApprovalRisk
     action: CompanionComputerUseAction
+    workflowId?: string
+    workflowStepId?: string
   }) {
     const actionKey = JSON.stringify(payload.action)
     const existing = approvals.value.find((approval) => {
       return approval.status === 'pending'
         && approval.title === payload.title
         && approval.risk === payload.risk
+        && approval.workflowId === payload.workflowId
+        && approval.workflowStepId === payload.workflowStepId
         && JSON.stringify(approval.action) === actionKey
     })
     if (existing)
@@ -268,6 +571,8 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
       risk: payload.risk,
       action: payload.action,
       status: 'pending',
+      workflowId: payload.workflowId,
+      workflowStepId: payload.workflowStepId,
       createdAt: now,
       updatedAt: now,
     }
@@ -305,8 +610,18 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
       metadata: {
         approvalId: approval.id,
         risk: approval.risk,
+        workflowId: approval.workflowId,
+        workflowStepId: approval.workflowStepId,
       },
     })
+
+    if (decision === 'rejected' && approval.workflowId && approval.workflowStepId) {
+      markWorkflowStepResult(approval.workflowId, approval.workflowStepId, {
+        ok: false,
+        result: 'Anh đã từ chối bước này. Workflow được tạm dừng.',
+      })
+    }
+
     return approval
   }
 
@@ -325,8 +640,17 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
         metadata: {
           approvalId: approval.id,
           risk: approval.risk,
+          workflowId: approval.workflowId,
+          workflowStepId: approval.workflowStepId,
         },
       })
+
+      if (approval.workflowId && approval.workflowStepId) {
+        markWorkflowStepResult(approval.workflowId, approval.workflowStepId, {
+          ok: false,
+          result: 'Quyền cho bước này đã hết hạn sau 30 phút. Workflow được tạm dừng.',
+        })
+      }
     }
 
     return approvals.value
@@ -354,8 +678,17 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
       metadata: {
         approvalId: approval.id,
         risk: approval.risk,
+        workflowId: approval.workflowId,
+        workflowStepId: approval.workflowStepId,
       },
     })
+
+    if (approval.workflowId && approval.workflowStepId) {
+      markWorkflowStepResult(approval.workflowId, approval.workflowStepId, {
+        ok: payload.ok,
+        result: payload.result,
+      })
+    }
   }
 
   function clearActivityLog() {
@@ -371,6 +704,7 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     tasks,
     approvals,
     activityLog,
+    workflows,
     partitionDiary,
     partitionFocus,
     addNote,
@@ -384,6 +718,15 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     getDueTasks,
     getDueAutonomousTasks,
     appendActivity,
+    createWorkflow,
+    getNextRunnableWorkflow,
+    getCurrentWorkflowStep,
+    startWorkflow,
+    markWorkflowStepStarted,
+    markWorkflowStepWaitingApproval,
+    markWorkflowStepResult,
+    resumeWorkflow,
+    cancelWorkflow,
     requestApproval,
     resolveApproval,
     getNextApprovedApproval,
