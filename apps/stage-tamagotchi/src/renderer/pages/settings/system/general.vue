@@ -306,11 +306,12 @@ function clearActivityLog() {
         <div class="airi-workflow-progress">
           <span>
             Bước {{ Math.min(workflow.currentStepIndex + 1, workflow.steps.length) }}/{{ workflow.steps.length }}
+            · tự chỉnh kế hoạch {{ workflow.revisionCount ?? 0 }} lần
           </span>
           <div class="airi-progress-track">
             <span
               class="airi-progress-fill"
-              :style="{ width: `${Math.round((workflow.steps.filter(step => step.status === 'completed').length / workflow.steps.length) * 100)}%` }"
+              :style="{ width: `${Math.round((workflow.steps.filter(step => step.status === 'completed' || step.status === 'skipped').length / workflow.steps.length) * 100)}%` }"
             />
           </div>
         </div>
@@ -341,6 +342,9 @@ function clearActivityLog() {
           </div>
         </div>
 
+        <p v-if="workflow.lastEvaluation" class="airi-workflow-evaluation">
+          <strong>Đánh giá gần nhất:</strong> {{ workflow.lastEvaluation }}
+        </p>
         <p v-if="workflow.lastError" class="airi-workflow-error">
           {{ workflow.lastError }}
         </p>
@@ -649,6 +653,16 @@ function clearActivityLog() {
 
 .airi-step-approval-note {
   font-weight: 600;
+}
+
+.airi-workflow-evaluation {
+  margin: 10px 0 0;
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: rgba(127, 127, 127, 0.1);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .airi-workflow-error {

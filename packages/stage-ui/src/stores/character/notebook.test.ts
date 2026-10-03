@@ -299,4 +299,107 @@ describe('character notebook persistence and due tasks', () => {
     expect(approval.status).toBe('rejected')
     expect(store.getNextApprovedApproval()).toBeUndefined()
   })
+
+  it('revises the remaining workflow while preserving old steps as history', () => {
+    const store = useCharacterNotebookStore()
+    const workflow = store.createWorkflow({
+      goal: 'Tìm đúng nút rồi tiếp tục',
+      steps: [
+        {
+          title: 'Quan sát',
+          action: {
+            type: 'computer-use',
+            argv: ['invoke', 'display.capture'],
+          },
+          requiresApproval: false,
+          approvalRisk: 'medium',
+        },
+        {
+          title: 'Bấm nút cũ',
+          action: {
+            type: 'computer-use',
+            argv: ['invoke', 'input.click', '--x', '10', '--y', '20'],
+          },
+          requiresApproval: true,
+          approvalRisk: 'high',
+        },
+      ],
+    })
+
+    store.startWorkflow(workflow.id)
+    const first = store.getCurrentWorkflowStep(workflow.id)!
+    store.markWorkflowStepStarted(workflow.id, first.id)
+    store.markWorkflowStepResult(workflow.id, first.id, { ok: true, result: 'layout changed' })
+
+    store.reviseWorkflowPlan(workflow.id, {
+      reason: 'Màn hình đã đổi nên vị trí nút cũ không còn đúng.',
+      steps: [
+        {
+          title: 'Quét lại cửa sổ',
+          action: {
+            type: 'computer-use',
+            argv: ['invoke', 'scan.windows'],
+          },
+          requiresApproval: false,
+          approvalRisk: 'medium',
+        },
+        {
+          title: 'Bấm nút mới',
+          action: {
+            type: 'computer-use',
+            argv: ['invoke', 'input.click', '--x', '40', '--y', '50'],
+          },
+          requiresApproval: true,
+          approvalRisk: 'high',
+        },
+      ],
+    })
+
+    expect(workflow.revisionCount).toBe(1)
+    expect(workflow.lastEvaluation).toContain('Màn hình đã đổi')
+    expect(workflow.steps[1]?.status).toBe('skipped')
+    expect(workflow.steps[2]?.title).toBe('Quét lại cửa sổ')
+    expect(workflow.currentStepIndex).toBe(2)
+    expect(workflow.status).toBe('running')
+  })
+
+  it('can reopen a completed plan when evaluation discovers more work', () => {
+    const store = useCharacterNotebookStore()
+    const workflow = store.createWorkflow({
+      goal: 'Mở trang và kiểm tra',
+      steps: [{
+        title: 'Mở trang',
+        action: {
+          type: 'safe-action',
+          action: { type: 'open-url', url: 'https://example.com' },
+        },
+        requiresApproval: false,
+        approvalRisk: 'medium',
+      }],
+    })
+
+    store.startWorkflow(workflow.id)
+    const step = store.getCurrentWorkflowStep(workflow.id)!
+    store.markWorkflowStepStarted(workflow.id, step.id)
+    store.markWorkflowStepResult(workflow.id, step.id, { ok: true, result: 'opened' })
+    expect(workflow.status).toBe('completed')
+
+    store.reviseWorkflowPlan(workflow.id, {
+      reason: 'Trang mở nhưng cần thêm bước xác minh.',
+      steps: [{
+        title: 'Chụp màn hình xác minh',
+        action: {
+          type: 'computer-use',
+          argv: ['invoke', 'display.capture'],
+        },
+        requiresApproval: false,
+        approvalRisk: 'medium',
+      }],
+    })
+
+    expect(workflow.status).toBe('running')
+    expect(workflow.completedAt).toBeUndefined()
+    expect(workflow.currentStepIndex).toBe(1)
+    expect(store.getCurrentWorkflowStep(workflow.id)?.title).toBe('Chụp màn hình xác minh')
+  })
 })

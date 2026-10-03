@@ -107,6 +107,9 @@ export interface CompanionWorkflow {
   updatedAt: number
   completedAt?: number
   lastError?: string
+  revisionCount: number
+  lastEvaluation?: string
+  lastEvaluatedAt?: number
   metadata?: Record<string, unknown>
 }
 
@@ -333,6 +336,7 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
       currentStepIndex: 0,
       createdAt: now,
       updatedAt: now,
+      revisionCount: 0,
       metadata: payload.metadata,
     }
 
@@ -484,6 +488,107 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
         nextStepIndex: workflow.currentStepIndex,
       },
     })
+  }
+
+  function reviseWorkflowPlan(workflowId: string, payload: {
+    reason: string
+    steps: Array<{
+      title: string
+      details?: string
+      action: CompanionWorkflowStepAction
+      requiresApproval: boolean
+      approvalRisk?: CompanionApprovalRisk
+    }>
+  }) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow)
+      return workflow
+    if (!payload.steps.length)
+      throw new Error('Workflow revision requires at least one replacement step.')
+
+    const now = Date.now()
+    const replacementStartIndex = workflow.steps.length
+
+    for (let index = workflow.currentStepIndex; index < workflow.steps.length; index += 1) {
+      const step = workflow.steps[index]
+      if (!step || step.status === 'completed' || step.status === 'skipped')
+        continue
+      step.status = 'skipped'
+      step.approvalId = undefined
+      step.completedAt ??= now
+    }
+
+    workflow.steps.push(...payload.steps.map(step => ({
+      id: nanoid(),
+      title: step.title,
+      details: step.details,
+      action: step.action,
+      status: 'pending' as const,
+      requiresApproval: step.requiresApproval,
+      approvalRisk: step.approvalRisk ?? 'high',
+    })))
+    workflow.currentStepIndex = replacementStartIndex
+    workflow.status = 'running'
+    workflow.completedAt = undefined
+    workflow.lastError = undefined
+    workflow.revisionCount = (workflow.revisionCount ?? 0) + 1
+    workflow.lastEvaluation = payload.reason
+    workflow.lastEvaluatedAt = now
+    workflow.updatedAt = now
+
+    appendActivity({
+      kind: 'workflow-replanned',
+      title: `AIRI đã sửa kế hoạch: ${workflow.goal}`,
+      details: payload.reason,
+      status: 'info',
+      metadata: {
+        workflowId: workflow.id,
+        revisionCount: workflow.revisionCount,
+        replacementStepCount: payload.steps.length,
+      },
+    })
+    return workflow
+  }
+
+  function recordWorkflowEvaluation(workflowId: string, evaluation: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow)
+      return
+
+    const now = Date.now()
+    workflow.lastEvaluation = evaluation
+    workflow.lastEvaluatedAt = now
+    workflow.updatedAt = now
+    appendActivity({
+      kind: 'workflow-evaluated',
+      title: `AIRI đã đánh giá lại: ${workflow.goal}`,
+      details: evaluation,
+      status: 'info',
+      metadata: {
+        workflowId: workflow.id,
+        revisionCount: workflow.revisionCount,
+      },
+    })
+  }
+
+  function pauseWorkflow(workflowId: string, reason: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow || workflow.status === 'cancelled')
+      return workflow
+
+    workflow.status = 'paused'
+    workflow.lastError = reason
+    workflow.lastEvaluation = reason
+    workflow.lastEvaluatedAt = Date.now()
+    workflow.updatedAt = Date.now()
+    appendActivity({
+      kind: 'workflow-paused',
+      title: `AIRI tạm dừng mục tiêu: ${workflow.goal}`,
+      details: reason,
+      status: 'warning',
+      metadata: { workflowId: workflow.id },
+    })
+    return workflow
   }
 
   function resumeWorkflow(workflowId: string) {
@@ -725,6 +830,9 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     markWorkflowStepStarted,
     markWorkflowStepWaitingApproval,
     markWorkflowStepResult,
+    reviseWorkflowPlan,
+    recordWorkflowEvaluation,
+    pauseWorkflow,
     resumeWorkflow,
     cancelWorkflow,
     requestApproval,
