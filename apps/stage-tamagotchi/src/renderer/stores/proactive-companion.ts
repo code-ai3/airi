@@ -444,6 +444,86 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
     )
   }
 
+  async function handleApprovedComputerAction() {
+    const approval = notebookStore.getNextApprovedApproval()
+    if (!approval)
+      return false
+
+    phase.value = 'working'
+    notebookStore.appendActivity({
+      kind: 'action-started',
+      title: `AIRI bắt đầu: ${approval.title}`,
+      details: approval.action.argv.join(' '),
+      status: 'info',
+      metadata: {
+        approvalId: approval.id,
+        risk: approval.risk,
+      },
+    })
+
+    try {
+      const result = await runComputerUse({ argv: approval.action.argv })
+      const output = stringifyObservation(result.output, 1_500)
+      const details = [
+        `argv: ${approval.action.argv.join(' ')}`,
+        output ? `output: ${output}` : '',
+        result.stderr ? `stderr: ${result.stderr.slice(0, 1_000)}` : '',
+      ].filter(Boolean).join('\n')
+
+      if (result.exitCode !== 0)
+        throw new Error(details || `Computer-use exited with code ${result.exitCode}`)
+
+      notebookStore.markApprovalResult(approval.id, {
+        ok: true,
+        result: details || 'Computer-use action completed.',
+      })
+
+      if (mode.value !== 'silent') {
+        await speak(
+          'approved-action-complete',
+          'Approved desktop action completed',
+          [
+            `Anh đã cho phép em làm việc: ${approval.title}.`,
+            'Việc đó vừa hoàn thành. Báo anh thật ngắn gọn, không phóng đại kết quả.',
+          ].join('\n'),
+          {
+            expectsReply: false,
+            phase: 'caring',
+          },
+        )
+      }
+
+      phase.value = 'idle'
+      return true
+    }
+    catch (error) {
+      const message = errorMessageFrom(error) ?? 'Unknown approved action error'
+      notebookStore.markApprovalResult(approval.id, {
+        ok: false,
+        result: message,
+      })
+
+      if (mode.value !== 'silent') {
+        await speak(
+          'approved-action-failed',
+          'Approved desktop action failed',
+          [
+            `Việc anh đã cho phép chưa thực hiện được: ${approval.title}.`,
+            `Lý do kỹ thuật: ${message}`,
+            'Nói ngắn gọn và không tự thử một hành động mạnh khác để lách lỗi.',
+          ].join('\n'),
+          {
+            expectsReply: false,
+            phase: 'caring',
+          },
+        )
+      }
+
+      phase.value = 'idle'
+      return true
+    }
+  }
+
   async function handleDueAutonomousTask(now: number) {
     const dueTasks = notebookStore
       .getDueAutonomousTasks(now, DEFAULTS.taskReminderWindowMs)
@@ -460,9 +540,30 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
       return false
 
     phase.value = 'working'
+    notebookStore.appendActivity({
+      kind: 'safe-task-started',
+      title: `AIRI bắt đầu việc an toàn: ${task.title}`,
+      details: task.details,
+      status: 'info',
+      metadata: {
+        taskId: task.id,
+        actionType: task.safeAction.type,
+      },
+    })
+
     try {
       const result = await runSafeTaskAction(task.safeAction)
       notebookStore.markTaskRun(task.id, result.message, true)
+      notebookStore.appendActivity({
+        kind: 'safe-task-completed',
+        title: `AIRI đã làm xong: ${task.title}`,
+        details: result.message,
+        status: 'success',
+        metadata: {
+          taskId: task.id,
+          actionType: task.safeAction.type,
+        },
+      })
 
       if (mode.value !== 'silent') {
         await speak(
@@ -486,6 +587,16 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
       const message = errorMessageFrom(error) ?? 'Unknown safe task execution error'
       notebookStore.markTaskRun(task.id, message, false)
       notebookStore.markTaskNotified(task.id, now + DEFAULTS.taskReminderRepeatMs)
+      notebookStore.appendActivity({
+        kind: 'safe-task-failed',
+        title: `AIRI chưa làm được: ${task.title}`,
+        details: message,
+        status: 'error',
+        metadata: {
+          taskId: task.id,
+          actionType: task.safeAction.type,
+        },
+      })
 
       if (mode.value !== 'silent') {
         await speak(
@@ -640,6 +751,9 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
         return
 
       if (!userIsActive)
+        return
+
+      if (await handleApprovedComputerAction())
         return
 
       if (await handleDueAutonomousTask(now))

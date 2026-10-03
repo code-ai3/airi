@@ -94,4 +94,73 @@ describe('character notebook persistence and due tasks', () => {
     expect(autonomous.lastRunResult).toBe('Opened URL')
     expect(store.getDueAutonomousTasks(now, 60_000)).toHaveLength(0)
   })
+
+  it('requires an explicit decision before an approval can execute', () => {
+    const store = useCharacterNotebookStore()
+    const approval = store.requestApproval({
+      title: 'Bấm nút gửi',
+      reason: 'Gửi nội dung đã soạn',
+      risk: 'high',
+      action: {
+        type: 'computer-use',
+        argv: ['invoke', 'input.click', '--x', '120', '--y', '240'],
+      },
+    })
+
+    expect(approval.status).toBe('pending')
+    expect(store.getNextApprovedApproval()).toBeUndefined()
+
+    store.resolveApproval(approval.id, 'approved')
+    expect(approval.status).toBe('approved')
+    expect(store.getNextApprovedApproval()?.id).toBe(approval.id)
+
+    store.markApprovalResult(approval.id, { ok: true, result: 'clicked' })
+    expect(approval.status).toBe('completed')
+    expect(approval.result).toBe('clicked')
+    expect(store.getNextApprovedApproval()).toBeUndefined()
+  })
+
+  it('expires an unused approval after thirty minutes', () => {
+    const store = useCharacterNotebookStore()
+    const approval = store.requestApproval({
+      title: 'Thao tác cũ',
+      risk: 'high',
+      action: {
+        type: 'computer-use',
+        argv: ['invoke', 'input.click', '--x', '10', '--y', '10'],
+      },
+    })
+
+    store.resolveApproval(approval.id, 'approved')
+    expect(approval.expiresAt).toBeTypeOf('number')
+
+    const afterExpiry = (approval.expiresAt ?? 0) + 1
+    expect(store.getNextApprovedApproval(afterExpiry)).toBeUndefined()
+    expect(approval.status).toBe('expired')
+    expect(store.activityLog.some(item => item.kind === 'approval-expired')).toBe(true)
+  })
+
+  it('deduplicates identical pending approvals and records activity', () => {
+    const store = useCharacterNotebookStore()
+    const payload = {
+      title: 'Gõ văn bản',
+      reason: 'Điền biểu mẫu',
+      risk: 'high' as const,
+      action: {
+        type: 'computer-use' as const,
+        argv: ['invoke', 'input.type', '--text', 'hello'],
+      },
+    }
+
+    const first = store.requestApproval(payload)
+    const second = store.requestApproval(payload)
+
+    expect(second.id).toBe(first.id)
+    expect(store.approvals).toHaveLength(1)
+    expect(store.activityLog.filter(item => item.kind === 'approval-requested')).toHaveLength(1)
+
+    store.resolveApproval(first.id, 'rejected')
+    expect(first.status).toBe('rejected')
+    expect(store.activityLog.some(item => item.kind === 'approval-rejected')).toBe(true)
+  })
 })
