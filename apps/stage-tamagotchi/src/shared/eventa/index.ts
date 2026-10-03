@@ -471,10 +471,20 @@ export interface ElectronLaunchAtLoginState {
   supported: boolean
 }
 
+export type ElectronSafeTaskAction
+  = | { type: 'open-url', url: string }
+    | { type: 'open-path', path: string }
+
+export interface ElectronSafeTaskActionResult {
+  ok: boolean
+  message: string
+}
+
 export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
 export const electronAppGetLaunchAtLogin = defineInvokeEventa<ElectronLaunchAtLoginState>('eventa:invoke:electron:app:get-launch-at-login')
 export const electronAppSetLaunchAtLogin = defineInvokeEventa<ElectronLaunchAtLoginState, boolean>('eventa:invoke:electron:app:set-launch-at-login')
+export const electronAppRunSafeTaskAction = defineInvokeEventa<ElectronSafeTaskActionResult, ElectronSafeTaskAction>('eventa:invoke:electron:app:run-safe-task-action')
 /** Whether the app runs on the Wayland Ozone backend, where Electron cannot read the cursor position reliably. */
 export const electronAppIsWayland = defineInvokeEventa<boolean>('eventa:invoke:electron:app:is-wayland')
 export const electronAppIconGet = defineInvokeEventa<boolean>('eventa:invoke:electron:app-icon:get')

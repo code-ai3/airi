@@ -86,7 +86,48 @@ describe('companion task tools', () => {
     await expect(executeCreateCompanionTask({
       title: 'Sai giờ',
       priority: 'normal',
+      autonomy: 'remind',
       dueAt: 'không-phải-ngày-giờ',
     })).rejects.toThrow('dueAt must be a valid ISO 8601 date/time.')
+  })
+
+  it('creates an explicitly approved safe-auto task', async () => {
+    const dueAt = new Date(Date.now() + 60_000).toISOString()
+    const created = JSON.parse(await executeCreateCompanionTask({
+      title: 'Mở trang tài liệu',
+      priority: 'normal',
+      autonomy: 'safe-auto',
+      dueAt,
+      safeAction: {
+        type: 'open-url',
+        url: 'https://example.com/docs',
+      },
+    }))
+
+    expect(created.task.autonomy).toBe('safe-auto')
+    expect(created.task.safeAction).toEqual({
+      type: 'open-url',
+      url: 'https://example.com/docs',
+    })
+  })
+
+  it('rejects safe-auto without a safe action', async () => {
+    await expect(executeCreateCompanionTask({
+      title: 'Tự chạy nhưng thiếu hành động',
+      priority: 'normal',
+      autonomy: 'safe-auto',
+    })).rejects.toThrow('safe-auto tasks require a safeAction.')
+  })
+
+  it('rejects safe actions on reminder-only tasks', async () => {
+    await expect(executeCreateCompanionTask({
+      title: 'Không được tự chạy',
+      priority: 'normal',
+      autonomy: 'remind',
+      safeAction: {
+        type: 'open-url',
+        url: 'https://example.com',
+      },
+    })).rejects.toThrow('safeAction is only allowed when autonomy is safe-auto.')
   })
 })

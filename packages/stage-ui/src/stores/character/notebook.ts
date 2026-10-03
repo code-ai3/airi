@@ -18,6 +18,11 @@ export interface NotebookEntry {
 
 export type TaskPriority = 'low' | 'normal' | 'high' | 'critical'
 export type TaskStatus = 'queued' | 'scheduled' | 'done' | 'dropped'
+export type TaskAutonomy = 'remind' | 'safe-auto'
+
+export type TaskSafeAction
+  = | { type: 'open-url', url: string }
+    | { type: 'open-path', path: string }
 
 export interface ScheduledTask {
   id: string
@@ -25,11 +30,15 @@ export interface ScheduledTask {
   details?: string
   priority: TaskPriority
   status: TaskStatus
+  autonomy: TaskAutonomy
+  safeAction?: TaskSafeAction
   dueAt?: number
   createdAt: number
   updatedAt: number
   lastNotifiedAt?: number
   nextNotifyAt?: number
+  lastRunAt?: number
+  lastRunResult?: string
   metadata?: Record<string, unknown>
 }
 
@@ -79,6 +88,8 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     title: string
     details?: string
     priority?: TaskPriority
+    autonomy?: TaskAutonomy
+    safeAction?: TaskSafeAction
     dueAt?: number
     metadata?: Record<string, unknown>
   }) {
@@ -89,6 +100,8 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
       details: payload.details,
       priority: payload.priority ?? 'normal',
       status: payload.dueAt ? 'scheduled' : 'queued',
+      autonomy: payload.autonomy ?? 'remind',
+      safeAction: payload.safeAction,
       dueAt: payload.dueAt,
       createdAt: now,
       updatedAt: now,
@@ -132,6 +145,20 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     task.updatedAt = Date.now()
   }
 
+  function markTaskRun(taskId: string, result: string, completed = false) {
+    const task = tasks.value.find(item => item.id === taskId)
+    if (!task)
+      return
+
+    task.lastRunAt = Date.now()
+    task.lastRunResult = result
+    task.updatedAt = Date.now()
+    if (completed) {
+      task.status = 'done'
+      task.nextNotifyAt = undefined
+    }
+  }
+
   function getDueTasks(now: number, windowMs: number) {
     return tasks.value.filter((task) => {
       if (task.status !== 'scheduled' || typeof task.dueAt !== 'number')
@@ -143,6 +170,10 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
         return false
       return true
     })
+  }
+
+  function getDueAutonomousTasks(now: number, windowMs: number) {
+    return getDueTasks(now, windowMs).filter(task => task.autonomy === 'safe-auto' && task.safeAction)
   }
 
   return {
@@ -157,7 +188,9 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     markTaskDone,
     requeueTask,
     markTaskNotified,
+    markTaskRun,
     getDueTasks,
+    getDueAutonomousTasks,
   }
 }, {
   synced: {

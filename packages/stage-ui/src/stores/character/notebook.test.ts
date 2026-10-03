@@ -67,4 +67,31 @@ describe('character notebook persistence and due tasks', () => {
     store.markTaskDone(task.id)
     expect(store.getDueTasks(now, 60_000)).toHaveLength(0)
   })
+
+  it('returns only approved safe-auto tasks for autonomous execution', () => {
+    const store = useCharacterNotebookStore()
+    const now = Date.now()
+
+    const autonomous = store.scheduleTask({
+      title: 'Mở tài liệu',
+      dueAt: now,
+      autonomy: 'safe-auto',
+      safeAction: {
+        type: 'open-url',
+        url: 'https://example.com',
+      },
+    })
+    store.scheduleTask({
+      title: 'Chỉ nhắc',
+      dueAt: now,
+      autonomy: 'remind',
+    })
+
+    expect(store.getDueAutonomousTasks(now, 60_000).map(task => task.id)).toEqual([autonomous.id])
+
+    store.markTaskRun(autonomous.id, 'Opened URL', true)
+    expect(autonomous.status).toBe('done')
+    expect(autonomous.lastRunResult).toBe('Opened URL')
+    expect(store.getDueAutonomousTasks(now, 60_000)).toHaveLength(0)
+  })
 })

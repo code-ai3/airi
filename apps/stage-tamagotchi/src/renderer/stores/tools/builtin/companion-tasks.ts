@@ -6,12 +6,26 @@ import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
 const taskPrioritySchema = z.enum(['low', 'normal', 'high', 'critical'])
+const taskAutonomySchema = z.enum(['remind', 'safe-auto'])
+
+const safeActionSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('open-url'),
+    url: z.string().url().max(2048).describe('HTTP/HTTPS URL to open at execution time.'),
+  }),
+  z.object({
+    type: z.literal('open-path'),
+    path: z.string().min(1).max(1024).describe('Absolute file or folder path to open at execution time. Executable/script paths are rejected by the desktop safety layer.'),
+  }),
+])
 
 const createTaskParams = z.object({
   title: z.string().min(1).max(160).describe('Short task title.'),
   details: z.string().max(1000).optional().describe('Optional task details or next action.'),
   priority: taskPrioritySchema.optional().default('normal'),
   dueAt: z.string().optional().describe('Optional ISO 8601 date/time. Omit if the task has no scheduled reminder yet.'),
+  autonomy: taskAutonomySchema.optional().default('remind').describe('Use safe-auto only when the user explicitly asked AIRI to perform the safe action automatically without another confirmation.'),
+  safeAction: safeActionSchema.optional().describe('Optional non-destructive action. Required for safe-auto tasks.'),
 })
 
 const listTasksParams = z.object({
@@ -45,18 +59,31 @@ function serializeTask(task: ScheduledTask) {
     details: task.details,
     priority: task.priority,
     status: task.status,
+    autonomy: task.autonomy ?? 'remind',
+    safeAction: task.safeAction,
     dueAt: typeof task.dueAt === 'number' ? new Date(task.dueAt).toISOString() : undefined,
+    lastRunAt: typeof task.lastRunAt === 'number' ? new Date(task.lastRunAt).toISOString() : undefined,
+    lastRunResult: task.lastRunResult,
     createdAt: new Date(task.createdAt).toISOString(),
     updatedAt: new Date(task.updatedAt).toISOString(),
   }
 }
 
-export async function executeCreateCompanionTask(input: z.infer<typeof createTaskParams>) {
+export async function executeCreateCompanionTask(input: z.input<typeof createTaskParams>) {
+  const autonomy = input.autonomy ?? 'remind'
+  if (autonomy === 'safe-auto' && !input.safeAction)
+    throw new Error('safe-auto tasks require a safeAction.')
+
+  if (input.safeAction && autonomy !== 'safe-auto')
+    throw new Error('safeAction is only allowed when autonomy is safe-auto.')
+
   const notebook = useCharacterNotebookStore()
   const task = notebook.scheduleTask({
     title: input.title.trim(),
     details: input.details?.trim() || undefined,
-    priority: input.priority,
+    priority: input.priority ?? 'normal',
+    autonomy,
+    safeAction: input.safeAction,
     dueAt: parseDueAt(input.dueAt),
     metadata: {
       createdBy: 'airi-chat-tool',
@@ -129,7 +156,7 @@ export async function executeRescheduleCompanionTask(input: z.infer<typeof resch
 const tools: Promise<Tool>[] = [
   tool({
     name: 'companion_task_create',
-    description: 'Create a persistent personal task for the user. A dueAt schedules a proactive reminder; without dueAt the task stays queued without reminder spam.',
+    description: 'Create a persistent personal task. Use autonomy=safe-auto only when the user explicitly asked AIRI to run the task automatically; safe-auto is intentionally limited to opening an HTTP/HTTPS URL or a non-executable file/folder path. A dueAt schedules execution/reminder; without dueAt the task stays queued.',
     execute: executeCreateCompanionTask,
     parameters: createTaskParams,
   }),
