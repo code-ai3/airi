@@ -4,7 +4,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { electronEvents } from '@proj-airi/electron-eventa'
 import { useVisionInference } from '@proj-airi/stage-ui/composables/vision/use-vision-inference'
-import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
+import { useCharacterNotebookStore, useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useLocalStorage } from '@vueuse/core'
@@ -65,6 +65,8 @@ const DEFAULTS = {
   returnGreetingMinMs: 20 * SECOND,
   returnGreetingMaxMs: 90 * SECOND,
   focusCareGapMs: 75 * MINUTE,
+  taskReminderWindowMs: 5 * MINUTE,
+  taskReminderRepeatMs: 20 * MINUTE,
 } as const
 
 function randomBetween(min: number, max: number) {
@@ -142,6 +144,7 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
   const chatSessionStore = useChatSessionStore()
   const { sessionMessages } = storeToRefs(chatSessionStore)
   const orchestrator = useCharacterOrchestratorStore()
+  const notebookStore = useCharacterNotebookStore()
   const visionStore = useVisionStore()
   const { activeProvider: activeVisionProvider, activeModel: activeVisionModel } = storeToRefs(visionStore)
   const { runVisionInference } = useVisionInference()
@@ -436,6 +439,62 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
     )
   }
 
+  async function handleDueTaskReminder(now: number) {
+    if (pendingReplySince.value)
+      return false
+
+    const dueTasks = notebookStore
+      .getDueTasks(now, DEFAULTS.taskReminderWindowMs)
+      .toSorted((a, b) => {
+        const priorityWeight = { critical: 0, high: 1, normal: 2, low: 3 } as const
+        const priorityDelta = priorityWeight[a.priority] - priorityWeight[b.priority]
+        if (priorityDelta !== 0)
+          return priorityDelta
+        return (a.dueAt ?? Number.MAX_SAFE_INTEGER) - (b.dueAt ?? Number.MAX_SAFE_INTEGER)
+      })
+      .slice(0, 3)
+
+    if (!dueTasks.length)
+      return false
+
+    const lines = dueTasks.map((task) => {
+      const dueText = typeof task.dueAt === 'number'
+        ? new Date(task.dueAt).toLocaleString('vi-VN')
+        : 'chưa có giờ'
+      return [
+        `- ${task.title} (ưu tiên: ${task.priority}, hạn: ${dueText})`,
+        task.details ? `  Chi tiết: ${task.details}` : '',
+      ].filter(Boolean).join('\n')
+    })
+
+    const reaction = await speak(
+      'task-reminder',
+      dueTasks.length === 1 ? 'Task reminder' : 'Task reminders',
+      [
+        'Đến lúc nhắc anh về công việc đã lưu. Nhắc ngắn gọn, tự nhiên và ưu tiên việc quan trọng nhất trước.',
+        ...lines,
+        'Không tự đánh dấu hoàn thành. Nếu anh bảo đã xong thì có thể dùng công cụ task để cập nhật sau.',
+      ].join('\n'),
+      {
+        expectsReply: false,
+        phase: 'caring',
+      },
+    )
+
+    if (!reaction.trim())
+      return false
+
+    for (const task of dueTasks) {
+      const nextNotifyAt = Math.max(
+        now + DEFAULTS.taskReminderRepeatMs,
+        (task.dueAt ?? now) + DEFAULTS.taskReminderRepeatMs,
+      )
+      notebookStore.markTaskNotified(task.id, nextNotifyAt)
+    }
+
+    return true
+  }
+
   async function handleIgnoredPrompt(now: number) {
     if (!pendingReplySince.value || now - pendingReplySince.value < DEFAULTS.responseWaitMs)
       return false
@@ -516,6 +575,9 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
         return
 
       if (!userIsActive)
+        return
+
+      if (await handleDueTaskReminder(now))
         return
 
       if (phase.value !== 'sleeping' && !pendingReplySince.value && now >= restAt.value) {
