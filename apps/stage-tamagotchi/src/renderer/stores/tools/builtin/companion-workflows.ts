@@ -11,6 +11,23 @@ import { z } from 'zod'
 import { computerUseRequiresApproval } from './computer-use'
 
 const approvalRiskSchema = z.enum(['medium', 'high', 'critical'])
+const workflowRecurrenceSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('interval'),
+    everyMinutes: z.number().int().min(5).max(525_600),
+  }),
+  z.object({
+    type: z.literal('daily'),
+    hour: z.number().int().min(0).max(23),
+    minute: z.number().int().min(0).max(59),
+  }),
+  z.object({
+    type: z.literal('weekly'),
+    daysOfWeek: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+    hour: z.number().int().min(0).max(23),
+    minute: z.number().int().min(0).max(59),
+  }),
+])
 
 const safeActionSchema = z.discriminatedUnion('type', [
   z.object({
@@ -42,10 +59,12 @@ const createWorkflowParams = z.object({
   goal: z.string().min(1).max(500).describe('The user-delegated end goal.'),
   summary: z.string().max(1000).optional().describe('Short explanation of the plan.'),
   steps: z.array(workflowStepSchema).min(1).max(12),
+  recurrence: workflowRecurrenceSchema.optional().describe('Optional recurring schedule in the PC local timezone.'),
+  runNow: z.boolean().optional().default(false).describe('When recurrence is set, run the first cycle immediately instead of waiting for the first scheduled time.'),
 })
 
 const listWorkflowParams = z.object({
-  status: z.enum(['open', 'queued', 'running', 'waiting-approval', 'paused', 'completed', 'failed', 'cancelled', 'all']).default('open'),
+  status: z.enum(['open', 'scheduled', 'queued', 'running', 'waiting-approval', 'paused', 'completed', 'failed', 'cancelled', 'all']).default('open'),
 })
 
 const workflowIdParams = z.object({
@@ -68,6 +87,9 @@ function serializeWorkflow(workflow: CompanionWorkflow) {
     currentStepNumber: Math.min(workflow.currentStepIndex + 1, workflow.steps.length),
     totalSteps: workflow.steps.length,
     lastError: workflow.lastError,
+    recurrence: workflow.recurrence,
+    nextRunAt: typeof workflow.nextRunAt === 'number' ? new Date(workflow.nextRunAt).toISOString() : undefined,
+    runsCompleted: workflow.runsCompleted ?? 0,
     revisionCount: workflow.revisionCount ?? 0,
     lastEvaluation: workflow.lastEvaluation,
     lastEvaluatedAt: typeof workflow.lastEvaluatedAt === 'number' ? new Date(workflow.lastEvaluatedAt).toISOString() : undefined,
@@ -120,6 +142,8 @@ export async function executeCreateCompanionWorkflow(input: z.input<typeof creat
     goal: input.goal.trim(),
     summary: input.summary?.trim() || undefined,
     steps,
+    recurrence: input.recurrence,
+    runNow: input.runNow ?? false,
     metadata: {
       createdBy: 'airi-chat-tool',
     },
@@ -127,7 +151,9 @@ export async function executeCreateCompanionWorkflow(input: z.input<typeof creat
   return JSON.stringify({
     ok: true,
     workflow: serializeWorkflow(workflow),
-    message: 'The multi-step workflow is queued. Read-only and safe steps may run automatically; state-changing computer-use steps will pause for explicit approval.',
+    message: workflow.status === 'scheduled'
+      ? 'The recurring workflow is scheduled persistently. Each completed cycle will schedule the next one; state-changing steps still require explicit approval.'
+      : 'The multi-step workflow is queued. Read-only and safe steps may run automatically; state-changing computer-use steps will pause for explicit approval.',
   })
 }
 
@@ -180,7 +206,7 @@ const tools: Promise<Tool>[] = [
   tool({
     name: 'companion_workflow_create',
     description: [
-      'Create a persistent multi-step desktop workflow for a goal the user explicitly delegated to AIRI.',
+      'Create a persistent multi-step desktop workflow for a goal the user explicitly delegated to AIRI. The workflow may also repeat by interval, daily, or weekly schedule.',
       'Plan the known steps in order. Use safe-action for opening an HTTP/HTTPS URL or non-executable path.',
       'Use computer-use for desktop inspection or interaction. Read-only computer-use steps run automatically.',
       'State-changing steps are automatically classified by code and will stop for explicit user approval before execution.',

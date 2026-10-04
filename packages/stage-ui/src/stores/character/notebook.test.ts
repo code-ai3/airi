@@ -468,4 +468,67 @@ describe('character notebook persistence and due tasks', () => {
     expect(task.recurrence).toBeUndefined()
     expect(task.dueAt).toBeUndefined()
   })
+
+  it('schedules a recurring workflow and makes it runnable when due', () => {
+    const store = useCharacterNotebookStore()
+    const workflow = store.createWorkflow({
+      goal: 'Kiểm tra desktop mỗi giờ',
+      steps: [{
+        title: 'Chụp màn hình',
+        action: {
+          type: 'computer-use',
+          argv: ['invoke', 'display.capture'],
+        },
+        requiresApproval: false,
+        approvalRisk: 'medium',
+      }],
+      recurrence: {
+        type: 'interval',
+        everyMinutes: 60,
+      },
+    })
+
+    expect(workflow.status).toBe('scheduled')
+    expect(workflow.nextRunAt).toBeTypeOf('number')
+    expect(store.getNextRunnableWorkflow((workflow.nextRunAt ?? 0) - 1)).toBeUndefined()
+    expect(store.getNextRunnableWorkflow(workflow.nextRunAt)?.id).toBe(workflow.id)
+  })
+
+  it('rolls a completed recurring workflow to its next run', () => {
+    const store = useCharacterNotebookStore()
+    const workflow = store.createWorkflow({
+      goal: 'Theo dõi định kỳ',
+      runNow: true,
+      recurrence: {
+        type: 'interval',
+        everyMinutes: 30,
+      },
+      steps: [{
+        title: 'Quan sát',
+        action: {
+          type: 'computer-use',
+          argv: ['invoke', 'display.capture'],
+        },
+        requiresApproval: false,
+        approvalRisk: 'medium',
+      }],
+    })
+
+    expect(workflow.status).toBe('queued')
+    store.startWorkflow(workflow.id)
+    const step = store.getCurrentWorkflowStep(workflow.id)!
+    store.markWorkflowStepStarted(workflow.id, step.id)
+    store.markWorkflowStepResult(workflow.id, step.id, { ok: true, result: 'captured' })
+    expect(workflow.status).toBe('completed')
+
+    store.scheduleNextWorkflowRun(workflow.id)
+
+    expect(workflow.status).toBe('scheduled')
+    expect(workflow.runsCompleted).toBe(1)
+    expect(workflow.currentStepIndex).toBe(0)
+    expect(workflow.steps[0]?.status).toBe('pending')
+    expect(workflow.nextRunAt).toBeGreaterThan(Date.now())
+    expect(workflow.revisionCount).toBe(0)
+    expect(store.activityLog.some(item => item.kind === 'workflow-recurrence-advanced')).toBe(true)
+  })
 })

@@ -67,7 +67,8 @@ export interface CompanionActivityLogEntry {
 }
 
 export type CompanionWorkflowStatus
-  = | 'queued'
+  = | 'scheduled'
+    | 'queued'
     | 'running'
     | 'waiting-approval'
     | 'paused'
@@ -112,6 +113,9 @@ export interface CompanionWorkflow {
   updatedAt: number
   completedAt?: number
   lastError?: string
+  recurrence?: TaskRecurrence
+  nextRunAt?: number
+  runsCompleted?: number
   revisionCount: number
   lastEvaluation?: string
   lastEvaluatedAt?: number
@@ -406,17 +410,22 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
       requiresApproval: boolean
       approvalRisk?: CompanionApprovalRisk
     }>
+    recurrence?: TaskRecurrence
+    runNow?: boolean
     metadata?: Record<string, unknown>
   }) {
     if (!payload.steps.length)
       throw new Error('Workflow requires at least one step.')
 
     const now = Date.now()
+    const nextRunAt = payload.recurrence && !payload.runNow
+      ? calculateNextTaskDueAt(payload.recurrence, now)
+      : undefined
     const workflow: CompanionWorkflow = {
       id: nanoid(),
       goal: payload.goal,
       summary: payload.summary,
-      status: 'queued',
+      status: nextRunAt ? 'scheduled' : 'queued',
       steps: payload.steps.map(step => ({
         id: nanoid(),
         title: step.title,
@@ -429,6 +438,9 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
       currentStepIndex: 0,
       createdAt: now,
       updatedAt: now,
+      recurrence: payload.recurrence,
+      nextRunAt,
+      runsCompleted: 0,
       revisionCount: 0,
       metadata: payload.metadata,
     }
@@ -447,7 +459,7 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     return workflow
   }
 
-  function getNextRunnableWorkflow() {
+  function getNextRunnableWorkflow(now = Date.now()) {
     const runningWorkflow = workflows.value
       .filter(workflow => workflow.status === 'running')
       .toSorted((a, b) => a.updatedAt - b.updatedAt)[0]
@@ -457,9 +469,17 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     if (workflows.value.some(workflow => workflow.status === 'waiting-approval'))
       return undefined
 
-    return workflows.value
+    const queuedWorkflow = workflows.value
       .filter(workflow => workflow.status === 'queued')
       .toSorted((a, b) => a.createdAt - b.createdAt)[0]
+    if (queuedWorkflow)
+      return queuedWorkflow
+
+    return workflows.value
+      .filter(workflow => workflow.status === 'scheduled'
+        && typeof workflow.nextRunAt === 'number'
+        && workflow.nextRunAt <= now)
+      .toSorted((a, b) => (a.nextRunAt ?? Number.MAX_SAFE_INTEGER) - (b.nextRunAt ?? Number.MAX_SAFE_INTEGER))[0]
   }
 
   function getCurrentWorkflowStep(workflowId: string) {
@@ -471,11 +491,15 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
 
   function startWorkflow(workflowId: string) {
     const workflow = workflows.value.find(item => item.id === workflowId)
-    if (!workflow || (workflow.status !== 'queued' && workflow.status !== 'running'))
+    if (!workflow || (workflow.status !== 'scheduled' && workflow.status !== 'queued' && workflow.status !== 'running'))
       return workflow
 
-    if (workflow.status === 'queued') {
+    if (workflow.status === 'scheduled' && (typeof workflow.nextRunAt !== 'number' || workflow.nextRunAt > Date.now()))
+      return workflow
+
+    if (workflow.status === 'scheduled' || workflow.status === 'queued') {
       workflow.status = 'running'
+      workflow.nextRunAt = undefined
       workflow.updatedAt = Date.now()
       appendActivity({
         kind: 'workflow-started',
@@ -581,6 +605,55 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
         nextStepIndex: workflow.currentStepIndex,
       },
     })
+  }
+
+  function scheduleNextWorkflowRun(workflowId: string, completedAt = Date.now()) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow || workflow.status !== 'completed' || !workflow.recurrence)
+      return workflow
+
+    const nextRunAt = calculateNextTaskDueAt(workflow.recurrence, completedAt)
+    if (!nextRunAt)
+      return workflow
+
+    for (const step of workflow.steps) {
+      if (step.status === 'skipped')
+        continue
+      step.status = 'pending'
+      step.approvalId = undefined
+      step.startedAt = undefined
+      step.completedAt = undefined
+      step.lastResult = undefined
+    }
+
+    const nextIndex = workflow.steps.findIndex(step => step.status === 'pending')
+    if (nextIndex < 0)
+      return workflow
+
+    workflow.currentStepIndex = nextIndex
+    workflow.status = 'scheduled'
+    workflow.nextRunAt = nextRunAt
+    workflow.runsCompleted = (workflow.runsCompleted ?? 0) + 1
+    workflow.completedAt = undefined
+    workflow.lastError = undefined
+    workflow.lastEvaluation = undefined
+    workflow.lastEvaluatedAt = undefined
+    workflow.revisionCount = 0
+    workflow.updatedAt = completedAt
+
+    appendActivity({
+      kind: 'workflow-recurrence-advanced',
+      title: `Đã lên lịch lượt tiếp theo: ${workflow.goal}`,
+      details: new Date(nextRunAt).toLocaleString('vi-VN'),
+      status: 'info',
+      metadata: {
+        workflowId: workflow.id,
+        recurrence: workflow.recurrence,
+        runsCompleted: workflow.runsCompleted,
+      },
+    })
+
+    return workflow
   }
 
   function reviseWorkflowPlan(workflowId: string, payload: {
@@ -923,6 +996,7 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     markWorkflowStepStarted,
     markWorkflowStepWaitingApproval,
     markWorkflowStepResult,
+    scheduleNextWorkflowRun,
     reviseWorkflowPlan,
     recordWorkflowEvaluation,
     pauseWorkflow,

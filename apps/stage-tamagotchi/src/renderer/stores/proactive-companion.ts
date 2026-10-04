@@ -725,6 +725,14 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
     })
   }
 
+  function scheduleRecurringWorkflowIfComplete(workflow: CompanionWorkflow) {
+    if (workflow.status !== 'completed' || !workflow.recurrence)
+      return false
+
+    const scheduled = notebookStore.scheduleNextWorkflowRun(workflow.id)
+    return scheduled?.status === 'scheduled'
+  }
+
   async function handleWorkflowStep() {
     const workflow = notebookStore.getNextRunnableWorkflow()
     if (!workflow)
@@ -752,8 +760,9 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
           ok: true,
           result: result.message,
         })
+        const recurringRunScheduled = scheduleRecurringWorkflowIfComplete(workflow)
 
-        if (workflow.status === 'completed' && mode.value !== 'silent') {
+        if ((workflow.status === 'completed' || recurringRunScheduled) && mode.value !== 'silent') {
           await speak(
             'workflow-complete',
             'Multi-step goal completed',
@@ -834,8 +843,9 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
         ok: true,
         result: stepResult,
       })
+      const recurringRunScheduled = scheduleRecurringWorkflowIfComplete(workflow)
 
-      if (workflow.status === 'completed' && mode.value !== 'silent') {
+      if ((workflow.status === 'completed' || recurringRunScheduled) && mode.value !== 'silent') {
         await speak(
           'workflow-complete',
           'Multi-step goal completed',
@@ -939,8 +949,9 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
           result: actionResult,
         })
       }
+      const recurringRunScheduled = linkedWorkflow ? scheduleRecurringWorkflowIfComplete(linkedWorkflow) : false
 
-      if (linkedWorkflow && linkedStep && linkedWorkflow.status === 'completed' && mode.value !== 'silent') {
+      if (linkedWorkflow && linkedStep && (linkedWorkflow.status === 'completed' || recurringRunScheduled) && mode.value !== 'silent') {
         await speak(
           'workflow-complete',
           'Multi-step goal completed',

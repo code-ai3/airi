@@ -105,6 +105,8 @@ function approvalStatusLabel(status: string) {
 
 function workflowStatusLabel(status: string) {
   switch (status) {
+    case 'scheduled':
+      return 'Đã lên lịch'
     case 'queued':
       return 'Đang xếp hàng'
     case 'running':
@@ -307,6 +309,9 @@ function clearActivityLog() {
           <span>
             Bước {{ Math.min(workflow.currentStepIndex + 1, workflow.steps.length) }}/{{ workflow.steps.length }}
             · tự chỉnh kế hoạch {{ workflow.revisionCount ?? 0 }} lần
+            <template v-if="workflow.runsCompleted">
+              · đã chạy {{ workflow.runsCompleted }} lượt
+            </template>
           </span>
           <div class="airi-progress-track">
             <span
@@ -315,6 +320,10 @@ function clearActivityLog() {
             />
           </div>
         </div>
+
+        <p v-if="workflow.nextRunAt" class="airi-workflow-next-run">
+          Lượt tiếp theo: {{ formatActivityTime(workflow.nextRunAt) }}
+        </p>
 
         <div class="airi-workflow-steps">
           <div
@@ -576,6 +585,12 @@ function clearActivityLog() {
   background: currentColor;
   opacity: 0.65;
   transition: width 180ms ease;
+}
+
+.airi-workflow-next-run {
+  margin: 8px 0 0;
+  opacity: 0.72;
+  font-size: 12px;
 }
 
 .airi-workflow-steps {

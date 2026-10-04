@@ -103,4 +103,31 @@ describe('companion workflow tools', () => {
       }],
     })).rejects.toThrow('must start with argv')
   })
+
+  it('creates a persistent recurring workflow', async () => {
+    const created = JSON.parse(await executeCreateCompanionWorkflow({
+      goal: 'Kiểm tra desktop mỗi sáng',
+      recurrence: {
+        type: 'daily',
+        hour: 8,
+        minute: 0,
+      },
+      steps: [{
+        title: 'Chụp màn hình',
+        action: {
+          type: 'computer-use',
+          argv: ['invoke', 'display.capture'],
+        },
+      }],
+    }))
+
+    expect(created.workflow.status).toBe('scheduled')
+    expect(created.workflow.recurrence).toEqual({
+      type: 'daily',
+      hour: 8,
+      minute: 0,
+    })
+    expect(created.workflow.nextRunAt).toBeTypeOf('string')
+    expect(created.workflow.runsCompleted).toBe(0)
+  })
 })
