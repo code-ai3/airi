@@ -130,4 +130,63 @@ describe('companion task tools', () => {
       },
     })).rejects.toThrow('safeAction is only allowed when autonomy is safe-auto.')
   })
+
+  it('creates a recurring task without an explicit first dueAt', async () => {
+    const created = JSON.parse(await executeCreateCompanionTask({
+      title: 'Học tiếng Anh hằng ngày',
+      priority: 'normal',
+      recurrence: {
+        type: 'daily',
+        hour: 20,
+        minute: 0,
+      },
+    }))
+
+    expect(created.task.status).toBe('scheduled')
+    expect(created.task.recurrence).toEqual({
+      type: 'daily',
+      hour: 20,
+      minute: 0,
+    })
+    expect(created.task.dueAt).toBeTypeOf('string')
+    expect(created.task.occurrencesCompleted).toBe(0)
+  })
+
+  it('completing a recurring task schedules its next occurrence', async () => {
+    const created = JSON.parse(await executeCreateCompanionTask({
+      title: 'Nhắc giãn cơ',
+      priority: 'normal',
+      dueAt: new Date(Date.now() - 1_000).toISOString(),
+      recurrence: {
+        type: 'interval',
+        everyMinutes: 30,
+      },
+    }))
+
+    const completed = JSON.parse(await executeCompleteCompanionTask({ taskId: created.task.id }))
+    expect(completed.task.status).toBe('scheduled')
+    expect(completed.task.occurrencesCompleted).toBe(1)
+    expect(Date.parse(completed.task.dueAt)).toBeGreaterThan(Date.now())
+  })
+
+  it('can stop recurrence and leave the task unscheduled', async () => {
+    const created = JSON.parse(await executeCreateCompanionTask({
+      title: 'Nhắc định kỳ',
+      priority: 'normal',
+      recurrence: {
+        type: 'interval',
+        everyMinutes: 60,
+      },
+    }))
+
+    const updated = JSON.parse(await executeRescheduleCompanionTask({
+      taskId: created.task.id,
+      recurrence: null,
+      reason: 'Anh không cần nhắc định kỳ nữa',
+    }))
+
+    expect(updated.task.status).toBe('queued')
+    expect(updated.task.recurrence).toBeUndefined()
+    expect(updated.task.dueAt).toBeUndefined()
+  })
 })

@@ -402,4 +402,70 @@ describe('character notebook persistence and due tasks', () => {
     expect(workflow.currentStepIndex).toBe(1)
     expect(store.getCurrentWorkflowStep(workflow.id)?.title).toBe('Chụp màn hình xác minh')
   })
+
+  it('rolls a recurring reminder forward after completion', () => {
+    const store = useCharacterNotebookStore()
+    const beforeComplete = Date.now()
+    const task = store.scheduleTask({
+      title: 'Uống nước',
+      dueAt: beforeComplete - 1_000,
+      recurrence: {
+        type: 'interval',
+        everyMinutes: 30,
+      },
+    })
+
+    store.markTaskDone(task.id)
+
+    expect(task.status).toBe('scheduled')
+    expect(task.occurrencesCompleted).toBe(1)
+    expect(task.dueAt).toBeGreaterThanOrEqual(beforeComplete + 30 * 60_000)
+    expect(task.dueAt).toBeLessThanOrEqual(Date.now() + 30 * 60_000)
+    expect(store.activityLog.some(item => item.kind === 'task-recurrence-advanced')).toBe(true)
+  })
+
+  it('rolls a recurring safe-auto task forward after a successful run', () => {
+    const store = useCharacterNotebookStore()
+    const task = store.scheduleTask({
+      title: 'Mở trang học',
+      dueAt: Date.now(),
+      autonomy: 'safe-auto',
+      safeAction: {
+        type: 'open-url',
+        url: 'https://example.com',
+      },
+      recurrence: {
+        type: 'interval',
+        everyMinutes: 60,
+      },
+    })
+
+    store.markTaskRun(task.id, 'Opened URL', true)
+
+    expect(task.status).toBe('scheduled')
+    expect(task.occurrencesCompleted).toBe(1)
+    expect(task.lastRunResult).toBe('Opened URL')
+    expect(task.dueAt).toBeGreaterThan(Date.now())
+  })
+
+  it('can disable recurrence without deleting the task', () => {
+    const store = useCharacterNotebookStore()
+    const task = store.scheduleTask({
+      title: 'Nhắc mỗi ngày',
+      recurrence: {
+        type: 'daily',
+        hour: 8,
+        minute: 15,
+      },
+    })
+
+    expect(task.status).toBe('scheduled')
+    expect(task.recurrence?.type).toBe('daily')
+
+    store.requeueTask(task.id, { recurrence: null })
+
+    expect(task.status).toBe('queued')
+    expect(task.recurrence).toBeUndefined()
+    expect(task.dueAt).toBeUndefined()
+  })
 })

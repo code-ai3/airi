@@ -1,4 +1,4 @@
-import type { ScheduledTask } from '@proj-airi/stage-ui/stores/character'
+import type { ScheduledTask, TaskRecurrence } from '@proj-airi/stage-ui/stores/character'
 import type { Tool } from '@xsai/shared-chat'
 
 import { useCharacterNotebookStore } from '@proj-airi/stage-ui/stores/character'
@@ -7,6 +7,23 @@ import { z } from 'zod'
 
 const taskPrioritySchema = z.enum(['low', 'normal', 'high', 'critical'])
 const taskAutonomySchema = z.enum(['remind', 'safe-auto'])
+const taskRecurrenceSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('interval'),
+    everyMinutes: z.number().int().min(5).max(525_600),
+  }),
+  z.object({
+    type: z.literal('daily'),
+    hour: z.number().int().min(0).max(23),
+    minute: z.number().int().min(0).max(59),
+  }),
+  z.object({
+    type: z.literal('weekly'),
+    daysOfWeek: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+    hour: z.number().int().min(0).max(23),
+    minute: z.number().int().min(0).max(59),
+  }),
+])
 
 const safeActionSchema = z.discriminatedUnion('type', [
   z.object({
@@ -26,6 +43,7 @@ const createTaskParams = z.object({
   dueAt: z.string().optional().describe('Optional ISO 8601 date/time. Omit if the task has no scheduled reminder yet.'),
   autonomy: taskAutonomySchema.optional().default('remind').describe('Use safe-auto only when the user explicitly asked AIRI to perform the safe action automatically without another confirmation.'),
   safeAction: safeActionSchema.optional().describe('Optional non-destructive action. Required for safe-auto tasks.'),
+  recurrence: taskRecurrenceSchema.optional().describe('Optional recurring schedule in the PC local timezone. Interval repeats after completion; daily/weekly keep the requested local clock time.'),
 })
 
 const listTasksParams = z.object({
@@ -38,7 +56,8 @@ const completeTaskParams = z.object({
 
 const rescheduleTaskParams = z.object({
   taskId: z.string().min(1),
-  dueAt: z.string().optional().describe('New ISO 8601 date/time. Omit to put the task back in the unscheduled queue.'),
+  dueAt: z.string().optional().describe('New ISO 8601 date/time for the next occurrence.'),
+  recurrence: taskRecurrenceSchema.nullable().optional().describe('Set or replace recurrence. Pass null to stop recurrence; with no dueAt this returns the task to the unscheduled queue.'),
   reason: z.string().max(500).optional(),
 })
 
@@ -61,6 +80,8 @@ function serializeTask(task: ScheduledTask) {
     status: task.status,
     autonomy: task.autonomy ?? 'remind',
     safeAction: task.safeAction,
+    recurrence: task.recurrence,
+    occurrencesCompleted: task.occurrencesCompleted ?? 0,
     dueAt: typeof task.dueAt === 'number' ? new Date(task.dueAt).toISOString() : undefined,
     lastRunAt: typeof task.lastRunAt === 'number' ? new Date(task.lastRunAt).toISOString() : undefined,
     lastRunResult: task.lastRunResult,
@@ -84,6 +105,7 @@ export async function executeCreateCompanionTask(input: z.input<typeof createTas
     priority: input.priority ?? 'normal',
     autonomy,
     safeAction: input.safeAction,
+    recurrence: input.recurrence as TaskRecurrence | undefined,
     dueAt: parseDueAt(input.dueAt),
     metadata: {
       createdBy: 'airi-chat-tool',
@@ -143,6 +165,7 @@ export async function executeRescheduleCompanionTask(input: z.infer<typeof resch
 
   notebook.requeueTask(input.taskId, {
     dueAt: parseDueAt(input.dueAt),
+    recurrence: input.recurrence as TaskRecurrence | null | undefined,
     reason: input.reason?.trim() || undefined,
   })
 
@@ -156,7 +179,7 @@ export async function executeRescheduleCompanionTask(input: z.infer<typeof resch
 const tools: Promise<Tool>[] = [
   tool({
     name: 'companion_task_create',
-    description: 'Create a persistent personal task. Use autonomy=safe-auto only when the user explicitly asked AIRI to run the task automatically; safe-auto is intentionally limited to opening an HTTP/HTTPS URL or a non-executable file/folder path. A dueAt schedules execution/reminder; without dueAt the task stays queued.',
+    description: 'Create a persistent personal task. It can be one-time or recurring (interval, daily, weekly in the PC local timezone). Use autonomy=safe-auto only when the user explicitly asked AIRI to run the safe action automatically; safe-auto is intentionally limited to opening an HTTP/HTTPS URL or a non-executable file/folder path. If recurrence is provided without dueAt, AIRI calculates the first occurrence automatically.',
     execute: executeCreateCompanionTask,
     parameters: createTaskParams,
   }),
@@ -174,7 +197,7 @@ const tools: Promise<Tool>[] = [
   }),
   tool({
     name: 'companion_task_reschedule',
-    description: 'Reschedule a task. Omit dueAt to return it to the unscheduled queue.',
+    description: 'Reschedule the next occurrence and optionally set, replace, or clear recurrence. Pass recurrence=null and omit dueAt to stop recurrence and return the task to the unscheduled queue.',
     execute: executeRescheduleCompanionTask,
     parameters: rescheduleTaskParams,
   }),

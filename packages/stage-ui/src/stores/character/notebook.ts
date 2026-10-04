@@ -20,6 +20,11 @@ export type TaskPriority = 'low' | 'normal' | 'high' | 'critical'
 export type TaskStatus = 'queued' | 'scheduled' | 'done' | 'dropped'
 export type TaskAutonomy = 'remind' | 'safe-auto'
 
+export type TaskRecurrence
+  = | { type: 'interval', everyMinutes: number }
+    | { type: 'daily', hour: number, minute: number }
+    | { type: 'weekly', daysOfWeek: number[], hour: number, minute: number }
+
 export type TaskSafeAction
   = | { type: 'open-url', url: string }
     | { type: 'open-path', path: string }
@@ -121,7 +126,9 @@ export interface ScheduledTask {
   status: TaskStatus
   autonomy: TaskAutonomy
   safeAction?: TaskSafeAction
+  recurrence?: TaskRecurrence
   dueAt?: number
+  occurrencesCompleted?: number
   createdAt: number
   updatedAt: number
   lastNotifiedAt?: number
@@ -129,6 +136,42 @@ export interface ScheduledTask {
   lastRunAt?: number
   lastRunResult?: string
   metadata?: Record<string, unknown>
+}
+
+export function calculateNextTaskDueAt(recurrence: TaskRecurrence, after: number) {
+  if (recurrence.type === 'interval') {
+    if (!Number.isFinite(recurrence.everyMinutes) || recurrence.everyMinutes <= 0)
+      return undefined
+    return after + recurrence.everyMinutes * 60_000
+  }
+
+  if (!Number.isInteger(recurrence.hour) || recurrence.hour < 0 || recurrence.hour > 23)
+    return undefined
+  if (!Number.isInteger(recurrence.minute) || recurrence.minute < 0 || recurrence.minute > 59)
+    return undefined
+
+  if (recurrence.type === 'daily') {
+    const candidate = new Date(after)
+    candidate.setHours(recurrence.hour, recurrence.minute, 0, 0)
+    if (candidate.getTime() <= after)
+      candidate.setDate(candidate.getDate() + 1)
+    return candidate.getTime()
+  }
+
+  const days = [...new Set(recurrence.daysOfWeek)]
+    .filter(day => Number.isInteger(day) && day >= 0 && day <= 6)
+  if (!days.length)
+    return undefined
+
+  for (let offset = 0; offset <= 7; offset += 1) {
+    const candidate = new Date(after)
+    candidate.setDate(candidate.getDate() + offset)
+    candidate.setHours(recurrence.hour, recurrence.minute, 0, 0)
+    if (candidate.getTime() > after && days.includes(candidate.getDay()))
+      return candidate.getTime()
+  }
+
+  return undefined
 }
 
 export const useCharacterNotebookStore = defineStore('character-notebook', () => {
@@ -194,19 +237,23 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     priority?: TaskPriority
     autonomy?: TaskAutonomy
     safeAction?: TaskSafeAction
+    recurrence?: TaskRecurrence
     dueAt?: number
     metadata?: Record<string, unknown>
   }) {
     const now = Date.now()
+    const dueAt = payload.dueAt ?? (payload.recurrence ? calculateNextTaskDueAt(payload.recurrence, now) : undefined)
     const task: ScheduledTask = {
       id: nanoid(),
       title: payload.title,
       details: payload.details,
       priority: payload.priority ?? 'normal',
-      status: payload.dueAt ? 'scheduled' : 'queued',
+      status: dueAt ? 'scheduled' : 'queued',
       autonomy: payload.autonomy ?? 'remind',
       safeAction: payload.safeAction,
-      dueAt: payload.dueAt,
+      recurrence: payload.recurrence,
+      dueAt,
+      occurrencesCompleted: 0,
       createdAt: now,
       updatedAt: now,
       metadata: payload.metadata,
@@ -216,22 +263,65 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     return task
   }
 
+  function advanceRecurringTask(task: ScheduledTask, completedAt: number) {
+    if (!task.recurrence)
+      return false
+
+    const nextDueAt = calculateNextTaskDueAt(task.recurrence, completedAt)
+    if (!nextDueAt)
+      return false
+
+    task.status = 'scheduled'
+    task.dueAt = nextDueAt
+    task.lastNotifiedAt = undefined
+    task.nextNotifyAt = undefined
+    task.occurrencesCompleted = (task.occurrencesCompleted ?? 0) + 1
+    task.updatedAt = completedAt
+    task.metadata = {
+      ...task.metadata,
+      lastOccurrenceCompletedAt: completedAt,
+    }
+    appendActivity({
+      kind: 'task-recurrence-advanced',
+      title: `Đã lên lịch lần tiếp theo: ${task.title}`,
+      details: new Date(nextDueAt).toLocaleString('vi-VN'),
+      status: 'info',
+      metadata: {
+        taskId: task.id,
+        recurrence: task.recurrence,
+        occurrencesCompleted: task.occurrencesCompleted,
+      },
+    })
+    return true
+  }
+
   function markTaskDone(taskId: string) {
     const task = tasks.value.find(item => item.id === taskId)
     if (!task)
       return
 
+    const now = Date.now()
+    if (advanceRecurringTask(task, now))
+      return
+
     task.status = 'done'
-    task.updatedAt = Date.now()
+    task.updatedAt = now
   }
 
-  function requeueTask(taskId: string, options?: { dueAt?: number, reason?: string }) {
+  function requeueTask(taskId: string, options?: { dueAt?: number, reason?: string, recurrence?: TaskRecurrence | null }) {
     const task = tasks.value.find(item => item.id === taskId)
     if (!task)
       return
 
-    task.status = options?.dueAt ? 'scheduled' : 'queued'
-    task.dueAt = options?.dueAt
+    if (options?.recurrence !== undefined)
+      task.recurrence = options.recurrence ?? undefined
+
+    const dueAt = options?.dueAt
+      ?? (task.recurrence ? calculateNextTaskDueAt(task.recurrence, Date.now()) : undefined)
+
+    task.status = dueAt ? 'scheduled' : 'queued'
+    task.dueAt = dueAt
+    task.nextNotifyAt = undefined
     task.updatedAt = Date.now()
     task.metadata = {
       ...task.metadata,
@@ -254,10 +344,13 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     if (!task)
       return
 
-    task.lastRunAt = Date.now()
+    const now = Date.now()
+    task.lastRunAt = now
     task.lastRunResult = result
-    task.updatedAt = Date.now()
+    task.updatedAt = now
     if (completed) {
+      if (advanceRecurringTask(task, now))
+        return
       task.status = 'done'
       task.nextNotifyAt = undefined
     }
