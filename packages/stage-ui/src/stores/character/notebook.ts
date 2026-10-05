@@ -28,6 +28,7 @@ export type TaskRecurrence
 export type TaskSafeAction
   = | { type: 'open-url', url: string }
     | { type: 'open-path', path: string }
+    | { type: 'open-vscode-workspace', path: string }
 
 export type CompanionApprovalRisk = 'medium' | 'high' | 'critical'
 export type CompanionApprovalStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'failed' | 'expired'

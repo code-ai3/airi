@@ -167,6 +167,20 @@ function normalizeAdaptiveWorkflowSteps(value: unknown): NonNullable<WorkflowRev
           requiresApproval: false,
           approvalRisk: 'medium',
         })
+        continue
+      }
+
+      if (safeAction.type === 'open-vscode-workspace' && typeof safeAction.path === 'string' && safeAction.path.trim()) {
+        normalized.push({
+          title,
+          details,
+          action: {
+            type: 'safe-action',
+            action: { type: 'open-vscode-workspace', path: safeAction.path.trim().slice(0, 1024) },
+          },
+          requiresApproval: false,
+          approvalRisk: 'medium',
+        })
       }
       continue
     }
@@ -661,6 +675,7 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
       '- Allowed step action shapes are only:',
       '  {"type":"safe-action","action":{"type":"open-url","url":"https://..."}}',
       '  {"type":"safe-action","action":{"type":"open-path","path":"absolute path"}}',
+      '  {"type":"safe-action","action":{"type":"open-vscode-workspace","path":"absolute path"}}',
       '  {"type":"computer-use","argv":["invoke","command", "..."]}',
       '- For computer-use, reuse known command shapes from the existing plan when possible. If unsure of the exact command, pause instead of inventing a destructive command.',
       '',

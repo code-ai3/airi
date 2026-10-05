@@ -38,6 +38,10 @@ const safeActionSchema = z.discriminatedUnion('type', [
     type: z.literal('open-path'),
     path: z.string().min(1).max(1024),
   }),
+  z.object({
+    type: z.literal('open-vscode-workspace'),
+    path: z.string().min(1).max(1024),
+  }),
 ])
 
 const workflowStepSchema = z.object({
@@ -207,7 +211,7 @@ const tools: Promise<Tool>[] = [
     name: 'companion_workflow_create',
     description: [
       'Create a persistent multi-step desktop workflow for a goal the user explicitly delegated to AIRI. The workflow may also repeat by interval, daily, or weekly schedule.',
-      'Plan the known steps in order. Use safe-action for opening an HTTP/HTTPS URL or non-executable path.',
+      'Plan the known steps in order. Use safe-action for opening an HTTP/HTTPS URL, non-executable path, or a local VS Code workspace.',
       'Use computer-use for desktop inspection or interaction. Read-only computer-use steps run automatically.',
       'State-changing steps are automatically classified by code and will stop for explicit user approval before execution.',
       'After a state-changing step, include a read-only scan/capture verification step when the result can be checked on screen.',

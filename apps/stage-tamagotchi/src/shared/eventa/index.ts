@@ -474,6 +474,7 @@ export interface ElectronLaunchAtLoginState {
 export type ElectronSafeTaskAction
   = | { type: 'open-url', url: string }
     | { type: 'open-path', path: string }
+    | { type: 'open-vscode-workspace', path: string }
 
 export interface ElectronSafeTaskActionResult {
   ok: boolean

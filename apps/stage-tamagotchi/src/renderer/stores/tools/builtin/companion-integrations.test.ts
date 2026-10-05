@@ -1,0 +1,107 @@
+// @vitest-environment jsdom
+import { useCharacterNotebookStore } from '@proj-airi/stage-ui/stores/character'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import { executeStartEmployeeSession } from './companion-integrations'
+
+describe('companion employee integrations', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+  })
+
+  it('starts Gmail using the existing browser session', async () => {
+    const created = JSON.parse(await executeStartEmployeeSession({
+      target: 'gmail',
+      objective: 'Kiểm tra thư quan trọng hôm nay',
+      runNow: true,
+    }))
+
+    expect(created.target).toBe('gmail')
+    expect(created.workflow.status).toBe('queued')
+    expect(created.workflow.goal).toContain('[Gmail]')
+    expect(created.workflow.steps[0].action).toEqual({
+      type: 'safe-action',
+      action: {
+        type: 'open-url',
+        url: 'https://mail.google.com/',
+      },
+    })
+
+    const notebook = useCharacterNotebookStore()
+    expect(notebook.workflows).toHaveLength(1)
+  })
+
+  it('creates a recurring Google Calendar employee routine', async () => {
+    const created = JSON.parse(await executeStartEmployeeSession({
+      target: 'google-calendar',
+      objective: 'Kiểm tra lịch ngày mai và nhắc việc cần chuẩn bị',
+      recurrence: {
+        type: 'daily',
+        hour: 20,
+        minute: 0,
+      },
+      runNow: false,
+    }))
+
+    expect(created.workflow.status).toBe('scheduled')
+    expect(created.workflow.recurrence).toEqual({
+      type: 'daily',
+      hour: 20,
+      minute: 0,
+    })
+    expect(created.workflow.nextRunAt).toBeTypeOf('string')
+  })
+
+  it('limits GitHub sessions to github.com', async () => {
+    await expect(executeStartEmployeeSession({
+      target: 'github',
+      objective: 'Kiểm tra issue',
+      url: 'https://example.com/not-github',
+      runNow: true,
+    })).rejects.toThrow('only accept HTTPS github.com URLs')
+
+    const created = JSON.parse(await executeStartEmployeeSession({
+      target: 'github',
+      objective: 'Kiểm tra issue mới',
+      url: 'https://github.com/code-ai3/airi/issues',
+      runNow: true,
+    }))
+
+    expect(created.workflow.steps[0].action.action.url).toBe('https://github.com/code-ai3/airi/issues')
+  })
+
+  it('requires an HTTP/HTTPS URL for generic browser work', async () => {
+    await expect(executeStartEmployeeSession({
+      target: 'browser',
+      objective: 'Đọc trang',
+      runNow: true,
+    })).rejects.toThrow('requires url')
+
+    await expect(executeStartEmployeeSession({
+      target: 'browser',
+      objective: 'Đọc trang',
+      url: 'ftp://example.com/file',
+      runNow: true,
+    })).rejects.toThrow('only accept HTTP/HTTPS URLs')
+  })
+
+  it('opens a local workspace through the VS Code protocol', async () => {
+    const created = JSON.parse(await executeStartEmployeeSession({
+      target: 'vscode',
+      objective: 'Kiểm tra project AIRI',
+      workspacePath: 'D:\\AIRI-git-temp',
+      runNow: true,
+    }))
+
+    expect(created.targetName).toBe('VS Code')
+    expect(created.workflow.steps[0].action).toEqual({
+      type: 'safe-action',
+      action: {
+        type: 'open-vscode-workspace',
+        path: 'D:\\AIRI-git-temp',
+      },
+    })
+  })
+})

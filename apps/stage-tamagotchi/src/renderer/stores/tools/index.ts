@@ -1,6 +1,7 @@
 export {
   artistryToolReferences,
   companionApprovalToolReferences,
+  companionIntegrationToolReferences,
   companionTaskToolReferences,
   companionWorkflowToolReferences,
   computerUseToolReferences,

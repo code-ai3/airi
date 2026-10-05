@@ -34,6 +34,10 @@ const safeActionSchema = z.discriminatedUnion('type', [
     type: z.literal('open-path'),
     path: z.string().min(1).max(1024).describe('Absolute file or folder path to open at execution time. Executable/script paths are rejected by the desktop safety layer.'),
   }),
+  z.object({
+    type: z.literal('open-vscode-workspace'),
+    path: z.string().min(1).max(1024).describe('Absolute file or folder path to open in VS Code.'),
+  }),
 ])
 
 const createTaskParams = z.object({
@@ -179,7 +183,7 @@ export async function executeRescheduleCompanionTask(input: z.infer<typeof resch
 const tools: Promise<Tool>[] = [
   tool({
     name: 'companion_task_create',
-    description: 'Create a persistent personal task. It can be one-time or recurring (interval, daily, weekly in the PC local timezone). Use autonomy=safe-auto only when the user explicitly asked AIRI to run the safe action automatically; safe-auto is intentionally limited to opening an HTTP/HTTPS URL or a non-executable file/folder path. If recurrence is provided without dueAt, AIRI calculates the first occurrence automatically.',
+    description: 'Create a persistent personal task. It can be one-time or recurring (interval, daily, weekly in the PC local timezone). Use autonomy=safe-auto only when the user explicitly asked AIRI to run the safe action automatically; safe-auto is intentionally limited to opening an HTTP/HTTPS URL, a non-executable file/folder path, or a local VS Code workspace. If recurrence is provided without dueAt, AIRI calculates the first occurrence automatically.',
     execute: executeCreateCompanionTask,
     parameters: createTaskParams,
   }),

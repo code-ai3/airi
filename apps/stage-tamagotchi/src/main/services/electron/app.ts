@@ -79,9 +79,19 @@ export function createAppService(params: { context: ReturnType<typeof createCont
     }
 
     if (!isAbsolute(action.path))
-      throw new Error('Autonomous open-path tasks require an absolute path.')
+      throw new Error('Autonomous local-path tasks require an absolute path.')
 
     const info = await stat(action.path)
+
+    if (action.type === 'open-vscode-workspace') {
+      const normalizedPath = action.path.replace(/\\/g, '/')
+      await shell.openExternal(`vscode://file/${encodeURI(normalizedPath)}`)
+      return {
+        ok: true,
+        message: `Opened in VS Code: ${action.path}`,
+      }
+    }
+
     if (info.isFile()) {
       const extension = extname(action.path).toLowerCase()
       if (blockedExecutableExtensions.has(extension))

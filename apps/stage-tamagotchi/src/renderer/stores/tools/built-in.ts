@@ -5,6 +5,7 @@ import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { defineStore } from 'pinia'
 
 import { companionApprovalTools } from './builtin/companion-approvals'
+import { companionIntegrationTools } from './builtin/companion-integrations'
 import { companionTaskTools } from './builtin/companion-tasks'
 import { companionWorkflowTools } from './builtin/companion-workflows'
 import { computerUseTools } from './builtin/computer-use'
@@ -31,10 +32,15 @@ export const companionWorkflowToolReferences = [
   { name: 'companion_workflow_resume' },
 ] satisfies ChatToolReference[]
 
+export const companionIntegrationToolReferences = [
+  { name: 'companion_employee_start' },
+] satisfies ChatToolReference[]
+
 const companionDefaultToolReferences = [
   ...companionTaskToolReferences,
   ...companionApprovalToolReferences,
   ...companionWorkflowToolReferences,
+  ...companionIntegrationToolReferences,
 ] satisfies ChatToolReference[]
 
 export const computerUseToolReferences = [
@@ -67,6 +73,7 @@ export const useTamagotchiBuiltinToolsStore = defineStore('tamagotchi-builtin-to
       companionTaskTools(),
       companionApprovalTools(),
       companionWorkflowTools(),
+      companionIntegrationTools(),
       imageJournalTools(),
       widgetsTools(),
       weatherTools(),
