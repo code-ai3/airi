@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { useCharacterNotebookStore } from '@proj-airi/stage-ui/stores/character'
+import { useCharacterNotebookStore } from '@proj-airi/stage-ui/stores/character/notebook'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 

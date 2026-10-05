@@ -114,6 +114,11 @@ describe('character notebook persistence and due tasks', () => {
     expect(approval.status).toBe('approved')
     expect(store.getNextApprovedApproval()?.id).toBe(approval.id)
 
+    store.markApprovalExecuting(approval.id)
+    expect(approval.status).toBe('executing')
+    expect(approval.executionStartedAt).toBeTypeOf('number')
+    expect(store.getNextApprovedApproval()).toBeUndefined()
+
     store.markApprovalResult(approval.id, { ok: true, result: 'clicked' })
     expect(approval.status).toBe('completed')
     expect(approval.result).toBe('clicked')
@@ -138,6 +143,114 @@ describe('character notebook persistence and due tasks', () => {
     expect(store.getNextApprovedApproval(afterExpiry)).toBeUndefined()
     expect(approval.status).toBe('expired')
     expect(store.activityLog.some(item => item.kind === 'approval-expired')).toBe(true)
+  })
+
+  it('does not replay an interrupted executing approval after recovery', () => {
+    const store = useCharacterNotebookStore()
+    const workflow = store.createWorkflow({
+      goal: 'Gửi biểu mẫu',
+      steps: [{
+        title: 'Bấm nút gửi',
+        action: {
+          type: 'computer-use',
+          argv: ['invoke', 'input.click', '--x', '100', '--y', '200'],
+        },
+        requiresApproval: true,
+        approvalRisk: 'high',
+      }],
+    })
+
+    store.startWorkflow(workflow.id)
+    const step = store.getCurrentWorkflowStep(workflow.id)!
+    const approval = store.requestApproval({
+      title: step.title,
+      risk: step.approvalRisk,
+      action: {
+        type: 'computer-use',
+        argv: ['invoke', 'input.click', '--x', '100', '--y', '200'],
+      },
+      workflowId: workflow.id,
+      workflowStepId: step.id,
+    })
+    store.markWorkflowStepWaitingApproval(workflow.id, step.id, approval.id)
+    store.resolveApproval(approval.id, 'approved')
+    store.markApprovalExecuting(approval.id)
+
+    const recovery = store.recoverInterruptedAutomationState()
+
+    expect(recovery.interruptedApprovals).toBe(1)
+    expect(approval.status).toBe('failed')
+    expect(workflow.status).toBe('paused')
+    expect(step.status).toBe('failed')
+    expect(store.getNextApprovedApproval()).toBeUndefined()
+    expect(store.activityLog.some(item => item.kind === 'approval-execution-interrupted')).toBe(true)
+  })
+
+  it('keeps approved but not yet executing work resumable after recovery', () => {
+    const store = useCharacterNotebookStore()
+    const workflow = store.createWorkflow({
+      goal: 'Cập nhật biểu mẫu',
+      steps: [{
+        title: 'Bấm lưu',
+        action: {
+          type: 'computer-use',
+          argv: ['invoke', 'input.click', '--x', '20', '--y', '30'],
+        },
+        requiresApproval: true,
+        approvalRisk: 'high',
+      }],
+    })
+
+    store.startWorkflow(workflow.id)
+    const step = store.getCurrentWorkflowStep(workflow.id)!
+    const approval = store.requestApproval({
+      title: step.title,
+      risk: step.approvalRisk,
+      action: {
+        type: 'computer-use',
+        argv: ['invoke', 'input.click', '--x', '20', '--y', '30'],
+      },
+      workflowId: workflow.id,
+      workflowStepId: step.id,
+    })
+    store.markWorkflowStepWaitingApproval(workflow.id, step.id, approval.id)
+    store.resolveApproval(approval.id, 'approved')
+
+    const recovery = store.recoverInterruptedAutomationState()
+
+    expect(recovery.interruptedApprovals).toBe(0)
+    expect(approval.status).toBe('approved')
+    expect(workflow.status).toBe('waiting-approval')
+    expect(store.getNextApprovedApproval()?.id).toBe(approval.id)
+  })
+
+  it('requeues an interrupted read-only workflow step for safe continuation', () => {
+    const store = useCharacterNotebookStore()
+    const workflow = store.createWorkflow({
+      goal: 'Kiểm tra màn hình',
+      steps: [{
+        title: 'Chụp màn hình',
+        action: {
+          type: 'computer-use',
+          argv: ['invoke', 'display.capture'],
+        },
+        requiresApproval: false,
+        approvalRisk: 'medium',
+      }],
+    })
+
+    store.startWorkflow(workflow.id)
+    const step = store.getCurrentWorkflowStep(workflow.id)!
+    store.markWorkflowStepStarted(workflow.id, step.id)
+
+    const recovery = store.recoverInterruptedAutomationState()
+
+    expect(recovery.recoveredWorkflows).toBe(1)
+    expect(workflow.status).toBe('queued')
+    expect(step.status).toBe('pending')
+    expect(step.startedAt).toBeUndefined()
+    expect(store.getNextRunnableWorkflow()?.id).toBe(workflow.id)
+    expect(store.activityLog.some(item => item.kind === 'workflow-recovered')).toBe(true)
   })
 
   it('deduplicates identical pending approvals and records activity', () => {

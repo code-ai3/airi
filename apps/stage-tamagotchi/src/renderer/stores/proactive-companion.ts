@@ -999,6 +999,10 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
     if (!approval)
       return false
 
+    const executingApproval = notebookStore.markApprovalExecuting(approval.id)
+    if (!executingApproval || executingApproval.status !== 'executing')
+      return false
+
     const linkedWorkflow = approval.workflowId
       ? notebookStore.workflows.find(workflow => workflow.id === approval.workflowId)
       : undefined
@@ -1461,6 +1465,11 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
   function initialize() {
     if (running.value)
       return
+
+    const recovery = notebookStore.recoverInterruptedAutomationState()
+    if (recovery.recoveredWorkflows || recovery.interruptedApprovals) {
+      console.info('[ProactiveCompanion] Recovered interrupted automation state:', recovery)
+    }
 
     running.value = true
     phase.value = 'idle'

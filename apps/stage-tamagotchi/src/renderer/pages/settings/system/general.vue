@@ -23,7 +23,7 @@ const proactiveCompanion = useProactiveCompanionStore()
 const notebook = useCharacterNotebookStore()
 const { enabled: proactiveEnabled, observationEnabled, mode: proactiveMode } = storeToRefs(proactiveCompanion)
 const approvalQueue = computed(() => notebook.approvals
-  .filter(approval => approval.status === 'pending' || approval.status === 'approved')
+  .filter(approval => approval.status === 'pending' || approval.status === 'approved' || approval.status === 'executing')
   .toSorted((a, b) => b.updatedAt - a.updatedAt))
 const openWorkflows = computed(() => notebook.workflows
   .filter(workflow => workflow.status !== 'completed' && workflow.status !== 'cancelled')
@@ -96,6 +96,8 @@ function approvalRiskLabel(risk: 'medium' | 'high' | 'critical') {
 }
 
 function approvalStatusLabel(status: string) {
+  if (status === 'executing')
+    return 'Đang thực hiện'
   if (status === 'approved')
     return 'Đã duyệt · chờ thực hiện'
   if (status === 'pending')

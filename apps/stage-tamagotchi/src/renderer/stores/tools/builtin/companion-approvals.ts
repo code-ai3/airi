@@ -1,7 +1,7 @@
-import type { CompanionApprovalRequest } from '@proj-airi/stage-ui/stores/character'
+import type { CompanionApprovalRequest } from '@proj-airi/stage-ui/stores/character/notebook'
 import type { Tool } from '@xsai/shared-chat'
 
-import { useCharacterNotebookStore } from '@proj-airi/stage-ui/stores/character'
+import { useCharacterNotebookStore } from '@proj-airi/stage-ui/stores/character/notebook'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
@@ -20,7 +20,7 @@ const requestApprovalParams = z.object({
 })
 
 const listApprovalsParams = z.object({
-  status: z.enum(['pending', 'approved', 'rejected', 'completed', 'failed', 'expired', 'all']).default('pending'),
+  status: z.enum(['pending', 'approved', 'executing', 'rejected', 'completed', 'failed', 'expired', 'all']).default('pending'),
 })
 
 function serializeApproval(approval: CompanionApprovalRequest) {
@@ -37,6 +37,7 @@ function serializeApproval(approval: CompanionApprovalRequest) {
     updatedAt: new Date(approval.updatedAt).toISOString(),
     resolvedAt: typeof approval.resolvedAt === 'number' ? new Date(approval.resolvedAt).toISOString() : undefined,
     expiresAt: typeof approval.expiresAt === 'number' ? new Date(approval.expiresAt).toISOString() : undefined,
+    executionStartedAt: typeof approval.executionStartedAt === 'number' ? new Date(approval.executionStartedAt).toISOString() : undefined,
     executedAt: typeof approval.executedAt === 'number' ? new Date(approval.executedAt).toISOString() : undefined,
     result: approval.result,
   }

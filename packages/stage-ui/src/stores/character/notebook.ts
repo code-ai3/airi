@@ -31,7 +31,7 @@ export type TaskSafeAction
     | { type: 'open-vscode-workspace', path: string }
 
 export type CompanionApprovalRisk = 'medium' | 'high' | 'critical'
-export type CompanionApprovalStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'failed' | 'expired'
+export type CompanionApprovalStatus = 'pending' | 'approved' | 'executing' | 'rejected' | 'completed' | 'failed' | 'expired'
 
 export interface CompanionComputerUseAction {
   type: 'computer-use'
@@ -51,6 +51,7 @@ export interface CompanionApprovalRequest {
   updatedAt: number
   resolvedAt?: number
   expiresAt?: number
+  executionStartedAt?: number
   executedAt?: number
   result?: string
 }
@@ -897,6 +898,24 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     return approval
   }
 
+  function markApprovalExecuting(approvalId: string, now = Date.now()) {
+    const approval = approvals.value.find(item => item.id === approvalId)
+    if (!approval || approval.status !== 'approved')
+      return approval
+
+    if (typeof approval.expiresAt === 'number' && approval.expiresAt <= now) {
+      approval.status = 'expired'
+      approval.updatedAt = now
+      approval.result = 'Approval expired before execution started.'
+      return approval
+    }
+
+    approval.status = 'executing'
+    approval.executionStartedAt = now
+    approval.updatedAt = now
+    return approval
+  }
+
   function getNextApprovedApproval(now = Date.now()) {
     for (const approval of approvals.value) {
       if (approval.status !== 'approved' || typeof approval.expiresAt !== 'number' || approval.expiresAt > now)
@@ -963,12 +982,127 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     }
   }
 
+  function recoverInterruptedAutomationState(now = Date.now()) {
+    let recoveredWorkflows = 0
+    let interruptedApprovals = 0
+
+    for (const approval of approvals.value) {
+      if (approval.status !== 'executing')
+        continue
+
+      interruptedApprovals += 1
+      const reason = 'AIRI was interrupted while this approved action was executing. The external state may already have changed, so AIRI will not replay it automatically.'
+
+      approval.status = 'failed'
+      approval.updatedAt = now
+      approval.result = reason
+      appendActivity({
+        kind: 'approval-execution-interrupted',
+        title: `Thao tác bị gián đoạn: ${approval.title}`,
+        details: reason,
+        status: 'warning',
+        metadata: {
+          approvalId: approval.id,
+          risk: approval.risk,
+          workflowId: approval.workflowId,
+          workflowStepId: approval.workflowStepId,
+          executionStartedAt: approval.executionStartedAt,
+        },
+      })
+
+      if (approval.workflowId && approval.workflowStepId) {
+        const workflow = workflows.value.find(item => item.id === approval.workflowId)
+        const step = workflow?.steps.find(item => item.id === approval.workflowStepId)
+        if (workflow && step && step.status !== 'completed' && step.status !== 'skipped') {
+          markWorkflowStepResult(workflow.id, step.id, {
+            ok: false,
+            result: reason,
+          })
+        }
+      }
+    }
+
+    for (const workflow of workflows.value) {
+      if (workflow.status !== 'running')
+        continue
+
+      const step = workflow.steps[workflow.currentStepIndex]
+      if (!step) {
+        pauseWorkflow(workflow.id, 'AIRI found an interrupted workflow with no current step. It was paused to avoid guessing what to do next.')
+        recoveredWorkflows += 1
+        continue
+      }
+
+      if (step.status === 'running') {
+        if (step.requiresApproval) {
+          pauseWorkflow(workflow.id, 'A state-changing workflow step was left in an unsafe running state after interruption. AIRI will not retry it automatically.')
+          recoveredWorkflows += 1
+          continue
+        }
+
+        step.status = 'pending'
+        step.startedAt = undefined
+        step.completedAt = undefined
+        step.lastResult = undefined
+        workflow.status = 'queued'
+        workflow.updatedAt = now
+        recoveredWorkflows += 1
+        appendActivity({
+          kind: 'workflow-recovered',
+          title: `Khôi phục công việc an toàn: ${workflow.goal}`,
+          details: `AIRI sẽ chạy lại bước read-only/an toàn: ${step.title}`,
+          status: 'info',
+          metadata: {
+            workflowId: workflow.id,
+            workflowStepId: step.id,
+          },
+        })
+        continue
+      }
+
+      if (step.status === 'pending') {
+        workflow.status = 'queued'
+        workflow.updatedAt = now
+        recoveredWorkflows += 1
+        appendActivity({
+          kind: 'workflow-recovered',
+          title: `Tiếp tục công việc: ${workflow.goal}`,
+          details: `Bước tiếp theo vẫn chưa chạy: ${step.title}`,
+          status: 'info',
+          metadata: {
+            workflowId: workflow.id,
+            workflowStepId: step.id,
+          },
+        })
+        continue
+      }
+
+      if (step.status === 'waiting-approval') {
+        workflow.status = 'waiting-approval'
+        workflow.updatedAt = now
+        recoveredWorkflows += 1
+        continue
+      }
+
+      if (step.status === 'failed') {
+        workflow.status = 'paused'
+        workflow.updatedAt = now
+        recoveredWorkflows += 1
+      }
+    }
+
+    return {
+      recoveredWorkflows,
+      interruptedApprovals,
+    }
+  }
+
   function clearActivityLog() {
     activityLog.value.splice(0)
   }
 
   function clearResolvedApprovals() {
-    approvals.value = approvals.value.filter(approval => approval.status === 'pending' || approval.status === 'approved')
+    approvals.value = approvals.value.filter(approval => approval.status === 'pending' || approval.status === 'approved' || approval.status === 'executing')
   }
 
   return {
@@ -1005,8 +1139,10 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     cancelWorkflow,
     requestApproval,
     resolveApproval,
+    markApprovalExecuting,
     getNextApprovedApproval,
     markApprovalResult,
+    recoverInterruptedAutomationState,
     clearActivityLog,
     clearResolvedApprovals,
   }
