@@ -1,10 +1,10 @@
 import type {
   CompanionApprovalRisk,
   CompanionWorkflow,
-} from '@proj-airi/stage-ui/stores/character'
+} from '@proj-airi/stage-ui/stores/character/notebook'
 import type { Tool } from '@xsai/shared-chat'
 
-import { useCharacterNotebookStore } from '@proj-airi/stage-ui/stores/character'
+import { useCharacterNotebookStore } from '@proj-airi/stage-ui/stores/character/notebook'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
@@ -115,7 +115,10 @@ function serializeWorkflow(workflow: CompanionWorkflow) {
   }
 }
 
-export async function executeCreateCompanionWorkflow(input: z.input<typeof createWorkflowParams>) {
+export async function executeCreateCompanionWorkflow(
+  input: z.input<typeof createWorkflowParams>,
+  internal?: { metadata?: Record<string, unknown> },
+) {
   const notebook = useCharacterNotebookStore()
 
   const steps = input.steps.map((step) => {
@@ -150,6 +153,7 @@ export async function executeCreateCompanionWorkflow(input: z.input<typeof creat
     runNow: input.runNow ?? false,
     metadata: {
       createdBy: 'airi-chat-tool',
+      ...internal?.metadata,
     },
   })
   return JSON.stringify({

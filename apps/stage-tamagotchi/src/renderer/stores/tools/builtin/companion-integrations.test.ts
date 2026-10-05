@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { useCharacterNotebookStore } from '@proj-airi/stage-ui/stores/character'
+import { useCharacterNotebookStore } from '@proj-airi/stage-ui/stores/character/notebook'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -31,6 +31,13 @@ describe('companion employee integrations', () => {
 
     const notebook = useCharacterNotebookStore()
     expect(notebook.workflows).toHaveLength(1)
+    expect(notebook.workflows[0]?.metadata).toMatchObject({
+      employeeIntegration: true,
+      employeeTarget: 'gmail',
+      employeeTargetName: 'Gmail',
+      employeeAllowedHosts: ['mail.google.com'],
+      employeePlaybookVersion: 1,
+    })
   })
 
   it('creates a recurring Google Calendar employee routine', async () => {
@@ -70,6 +77,12 @@ describe('companion employee integrations', () => {
     }))
 
     expect(created.workflow.steps[0].action.action.url).toBe('https://github.com/code-ai3/airi/issues')
+
+    const notebook = useCharacterNotebookStore()
+    expect(notebook.workflows[0]?.metadata).toMatchObject({
+      employeeTarget: 'github',
+      employeeAllowedHosts: ['github.com', 'www.github.com'],
+    })
   })
 
   it('requires an HTTP/HTTPS URL for generic browser work', async () => {
@@ -85,13 +98,34 @@ describe('companion employee integrations', () => {
       url: 'ftp://example.com/file',
       runNow: true,
     })).rejects.toThrow('only accept HTTP/HTTPS URLs')
+
+    const created = JSON.parse(await executeStartEmployeeSession({
+      target: 'browser',
+      objective: 'Theo dõi trạng thái hệ thống',
+      url: 'https://status.example.com/dashboard',
+      runNow: true,
+    }))
+
+    expect(created.workflow.steps[0].action.action.url).toBe('https://status.example.com/dashboard')
+    const notebook = useCharacterNotebookStore()
+    expect(notebook.workflows[0]?.metadata).toMatchObject({
+      employeeTarget: 'browser',
+      employeeAllowedHosts: ['status.example.com'],
+    })
   })
 
   it('opens a local workspace through the VS Code protocol', async () => {
+    await expect(executeStartEmployeeSession({
+      target: 'vscode',
+      objective: 'Kiểm tra project AIRI',
+      workspacePath: 'AIRI',
+      runNow: true,
+    })).rejects.toThrow('requires an absolute local workspacePath')
+
     const created = JSON.parse(await executeStartEmployeeSession({
       target: 'vscode',
       objective: 'Kiểm tra project AIRI',
-      workspacePath: 'D:\\AIRI-git-temp',
+      workspacePath: 'E:\\AIRI',
       runNow: true,
     }))
 
@@ -100,8 +134,18 @@ describe('companion employee integrations', () => {
       type: 'safe-action',
       action: {
         type: 'open-vscode-workspace',
-        path: 'D:\\AIRI-git-temp',
+        path: 'E:\\AIRI',
       },
+    })
+
+    const notebook = useCharacterNotebookStore()
+    expect(notebook.workflows[0]?.metadata).toMatchObject({
+      employeeIntegration: true,
+      employeeTarget: 'vscode',
+      employeeTargetName: 'VS Code',
+      employeeAllowedHosts: [],
+      employeeWorkspacePath: 'E:\\AIRI',
+      employeePlaybookVersion: 1,
     })
   })
 })
