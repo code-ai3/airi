@@ -34,6 +34,7 @@ export const companionWorkflowToolReferences = [
 
 export const companionIntegrationToolReferences = [
   { name: 'companion_employee_start' },
+  { name: 'companion_employee_run' },
 ] satisfies ChatToolReference[]
 
 const companionDefaultToolReferences = [

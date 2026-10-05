@@ -56,16 +56,30 @@ const employeePlaybooks = {
   ],
 } as const
 
-const startEmployeeSessionParams = z.object({
-  target: z.enum(['gmail', 'google-calendar', 'github', 'browser', 'vscode']),
+const employeeTargetSchema = z.enum(['gmail', 'google-calendar', 'github', 'browser', 'vscode'])
+type EmployeeTarget = z.infer<typeof employeeTargetSchema>
+
+const employeeSurfaceSchema = z.object({
+  target: employeeTargetSchema,
+  url: z.string().url().max(2048).optional().describe('Required for browser. Optional GitHub URL for github.'),
+  workspacePath: z.string().min(1).max(1024).optional().describe('Required for vscode. Absolute local workspace/file path.'),
+})
+
+const startEmployeeSessionParams = employeeSurfaceSchema.extend({
   objective: z.string().min(1).max(600).describe('What the user explicitly asked AIRI to accomplish in this service/workspace.'),
-  url: z.string().url().max(2048).optional().describe('Required for target=browser. Optional GitHub URL for target=github.'),
-  workspacePath: z.string().min(1).max(1024).optional().describe('Required for target=vscode. Absolute local workspace/file path.'),
   recurrence: recurrenceSchema.optional().describe('Optional recurring schedule in the PC local timezone.'),
   runNow: z.boolean().optional().default(true).describe('Run the first cycle now. Set false to wait for the recurring schedule.'),
 })
 
-function resolveTarget(input: z.input<typeof startEmployeeSessionParams>) {
+const startEmployeeRunnerParams = z.object({
+  objective: z.string().min(1).max(1000).describe('The end-to-end outcome the user explicitly delegated to AIRI.'),
+  completionCriteria: z.string().min(1).max(1200).optional().describe('Concrete evidence that AIRI should use to decide the delegated job is complete.'),
+  surfaces: z.array(employeeSurfaceSchema).min(1).max(5).describe('The only services/workspaces AIRI may use for this delegated job.'),
+  recurrence: recurrenceSchema.optional().describe('Optional recurring schedule in the PC local timezone.'),
+  runNow: z.boolean().optional().default(true).describe('Run the first cycle now. Set false to wait for the recurring schedule.'),
+})
+
+function resolveTarget(input: z.input<typeof employeeSurfaceSchema>) {
   if (input.target === 'gmail') {
     return {
       name: 'Gmail',
@@ -201,6 +215,75 @@ export async function executeStartEmployeeSession(input: z.input<typeof startEmp
   })
 }
 
+export async function executeStartEmployeeRunner(input: z.input<typeof startEmployeeRunnerParams>) {
+  const objective = input.objective.trim()
+  const completionCriteria = input.completionCriteria?.trim()
+    || 'Observable evidence must show that the delegated end-to-end outcome was actually achieved.'
+  const resolvedSurfaces = input.surfaces.map(surface => ({
+    surface,
+    target: resolveTarget(surface),
+  }))
+
+  const targets = [...new Set(resolvedSurfaces.map(item => item.surface.target))] as EmployeeTarget[]
+  const targetNames = [...new Set(resolvedSurfaces.map(item => item.target.name))]
+  const allowedHosts = [...new Set(resolvedSurfaces.flatMap(({ surface, target }) => {
+    if (surface.target === 'github')
+      return ['github.com', 'www.github.com']
+    if (target.action.action.type !== 'open-url')
+      return []
+    return [new URL(target.action.action.url).hostname.toLowerCase()]
+  }))]
+  const workspacePaths = [...new Set(resolvedSurfaces
+    .filter(item => item.surface.target === 'vscode')
+    .map(item => item.surface.workspacePath?.trim())
+    .filter((path): path is string => !!path))]
+  const playbook = [...new Set(
+    targets.flatMap(target => [...employeePlaybooks[target]]),
+  )]
+
+  const result = JSON.parse(await executeCreateCompanionWorkflow({
+    goal: `[Employee Runner] ${objective}`,
+    summary: [
+      `AIRI owns this delegated job end-to-end across only these approved surfaces: ${targetNames.join(', ')}.`,
+      `Completion criteria: ${completionCriteria}`,
+      'Use the existing signed-in desktop sessions and the adaptive workflow engine to inspect evidence, execute the next safe step, verify the result, and replan when needed.',
+      'Read-only inspection may continue automatically. Any state-changing desktop interaction must stop at the existing approval gate.',
+      'If credentials, OTPs, payment data, recovery codes, API keys, or another secret is required, pause and ask the user to handle it manually.',
+      `Combined service playbook: ${playbook.join(' ')}`,
+    ].join(' '),
+    recurrence: input.recurrence,
+    runNow: input.runNow ?? true,
+    steps: resolvedSurfaces.map(({ target }, index) => ({
+      title: `Chuẩn bị bề mặt ${index + 1}: ${target.name}`,
+      details: `Mở ${target.name} để bắt đầu/tiếp tục mục tiêu end-to-end: ${objective}`,
+      action: target.action,
+    })),
+  }, {
+    metadata: {
+      employeeIntegration: true,
+      employeeRunner: true,
+      employeeRunnerVersion: 1,
+      employeeTargets: targets,
+      employeeTargetNames: targetNames,
+      employeeObjective: objective,
+      employeeCompletionCriteria: completionCriteria,
+      employeePlaybook: playbook,
+      employeePlaybookVersion: 1,
+      employeeAllowedHosts: allowedHosts,
+      employeeWorkspacePaths: workspacePaths,
+    },
+  }))
+
+  return JSON.stringify({
+    ...result,
+    runner: true,
+    targets,
+    targetNames,
+    allowedHosts,
+    workspacePaths,
+  })
+}
+
 const tools: Promise<Tool>[] = [
   tool({
     name: 'companion_employee_start',
@@ -213,6 +296,18 @@ const tools: Promise<Tool>[] = [
     ].join(' '),
     execute: executeStartEmployeeSession,
     parameters: startEmployeeSessionParams,
+  }),
+  tool({
+    name: 'companion_employee_run',
+    description: [
+      'Start one persistent end-to-end AI employee job across an explicit set of approved services/workspaces.',
+      'Use this when the user delegates an outcome that may require multiple surfaces, for example VS Code plus GitHub plus a browser page.',
+      'AIRI opens the declared surfaces, observes evidence after every step, adapts/replans, verifies results, and persists progress across restarts.',
+      'Read-only inspection may continue automatically. Every state-changing desktop action remains blocked behind the explicit approval gate.',
+      'The runner must stay inside the declared hosts/workspaces and must pause instead of requesting or handling passwords, OTPs, API keys, recovery codes, payment credentials, or other secrets.',
+    ].join(' '),
+    execute: executeStartEmployeeRunner,
+    parameters: startEmployeeRunnerParams,
   }),
 ]
 

@@ -3,7 +3,10 @@ import { useCharacterNotebookStore } from '@proj-airi/stage-ui/stores/character/
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { executeStartEmployeeSession } from './companion-integrations'
+import {
+  executeStartEmployeeRunner,
+  executeStartEmployeeSession,
+} from './companion-integrations'
 
 describe('companion employee integrations', () => {
   beforeEach(() => {
@@ -146,6 +149,46 @@ describe('companion employee integrations', () => {
       employeeAllowedHosts: [],
       employeeWorkspacePath: 'E:\\AIRI',
       employeePlaybookVersion: 1,
+    })
+  })
+
+  it('starts one end-to-end runner across multiple declared surfaces', async () => {
+    const created = JSON.parse(await executeStartEmployeeRunner({
+      objective: 'Kiểm tra AIRI, đối chiếu issue GitHub và xác minh trạng thái web',
+      completionCriteria: 'Có bằng chứng từ workspace, GitHub và trang trạng thái rằng công việc đã được kiểm tra.',
+      surfaces: [
+        {
+          target: 'vscode',
+          workspacePath: 'E:\\AIRI',
+        },
+        {
+          target: 'github',
+          url: 'https://github.com/code-ai3/airi/issues',
+        },
+        {
+          target: 'browser',
+          url: 'https://status.example.com/dashboard',
+        },
+      ],
+      runNow: true,
+    }))
+
+    expect(created.runner).toBe(true)
+    expect(created.targets).toEqual(['vscode', 'github', 'browser'])
+    expect(created.allowedHosts).toEqual(['github.com', 'www.github.com', 'status.example.com'])
+    expect(created.workspacePaths).toEqual(['E:\\AIRI'])
+    expect(created.workflow.status).toBe('queued')
+    expect(created.workflow.steps).toHaveLength(3)
+
+    const notebook = useCharacterNotebookStore()
+    expect(notebook.workflows[0]?.metadata).toMatchObject({
+      employeeIntegration: true,
+      employeeRunner: true,
+      employeeRunnerVersion: 1,
+      employeeTargets: ['vscode', 'github', 'browser'],
+      employeeAllowedHosts: ['github.com', 'www.github.com', 'status.example.com'],
+      employeeWorkspacePaths: ['E:\\AIRI'],
+      employeeCompletionCriteria: 'Có bằng chứng từ workspace, GitHub và trang trạng thái rằng công việc đã được kiểm tra.',
     })
   })
 })

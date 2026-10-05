@@ -6,9 +6,68 @@ import { rawTool } from '@xsai/tool'
 
 import { computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
 
-const readOnlyComputerUseCommands = new Set([
+export const computerUseReadOnlyCommands = new Set([
   'display.capture',
+  'display.list',
+  'screen.captureRegion',
+  'screen.findText',
+  'screen.waitForText',
+  'window.list',
+  'window.findText',
+  'window.waitForText',
+  'app.probePermissions',
+  'mediaControl.nowPlaying',
+  'scan.frame',
+  'scan.coverage',
 ])
+
+const computerUsePlannerStateChangingCommands = new Set([
+  'screen.clickText',
+  'window.clickText',
+  'input.focusText',
+  'input.axFocusText',
+  'input.typeText',
+  'input.pasteText',
+  'input.key',
+  'input.keys',
+  'input.keyboard',
+  'input.moveMouse',
+  'input.clickPoint',
+  'app.activate',
+  'mediaControl.play',
+  'mediaControl.pause',
+  'mediaControl.togglePlayPause',
+  'mediaControl.next',
+  'mediaControl.previous',
+])
+
+export const computerUsePlannerCommandCatalog = {
+  readOnly: [
+    '["invoke","display.capture"]',
+    '["invoke","display.list","--json"]',
+    '["invoke","screen.findText","Settings","--json"]',
+    '["invoke","screen.waitForText","Ready","--json"]',
+    '["invoke","window.list","--json"]',
+    '["invoke","window.findText","Settings","--title","Preferences","--json"]',
+    '["invoke","window.waitForText","Ready","--title","Target window","--json"]',
+    '["invoke","mediaControl.nowPlaying","--json"]',
+  ],
+  stateChanging: [
+    '["invoke","screen.clickText","Continue"]',
+    '["invoke","input.clickPoint","100","80"]',
+    '["invoke","input.typeText","text to type"]',
+    '["invoke","input.key","ctrl+s"]',
+  ],
+} as const
+
+export function computerUseCommandKnownToPlanner(argv: string[]) {
+  if (argv[0] !== 'invoke')
+    return false
+
+  const command = argv[1] ?? ''
+  return computerUseReadOnlyCommands.has(command)
+    || computerUsePlannerStateChangingCommands.has(command)
+}
 
 export function computerUseRequiresApproval(argv: string[]) {
   if (argv.includes('--help') || argv.includes('-h'))
@@ -18,7 +77,7 @@ export function computerUseRequiresApproval(argv: string[]) {
     return true
 
   const command = argv[1] ?? ''
-  if (readOnlyComputerUseCommands.has(command))
+  if (computerUseReadOnlyCommands.has(command))
     return false
   if (command.startsWith('scan.') || command.startsWith('ocr.'))
     return false

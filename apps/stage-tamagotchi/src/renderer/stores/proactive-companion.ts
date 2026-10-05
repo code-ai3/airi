@@ -30,7 +30,11 @@ import {
   computerUseReadImage,
   computerUseRun,
 } from '../../shared/eventa/computer-use'
-import { computerUseRequiresApproval } from './tools/builtin/computer-use'
+import {
+  computerUseCommandKnownToPlanner,
+  computerUsePlannerCommandCatalog,
+  computerUseRequiresApproval,
+} from './tools/builtin/computer-use'
 
 export type CompanionPhase
   = | 'sleeping'
@@ -97,11 +101,23 @@ interface WorkflowReviewDecision {
   }>
 }
 
+type EmployeeTarget = 'gmail' | 'google-calendar' | 'github' | 'browser' | 'vscode'
+
 interface EmployeeWorkflowPolicy {
-  target: 'gmail' | 'google-calendar' | 'github' | 'browser' | 'vscode'
+  targets: Set<EmployeeTarget>
   allowedHosts: Set<string>
-  workspacePath?: string
+  workspacePaths: string[]
   playbook: string[]
+  runner: boolean
+  completionCriteria?: string
+}
+
+function isEmployeeTarget(value: unknown): value is EmployeeTarget {
+  return value === 'gmail'
+    || value === 'google-calendar'
+    || value === 'github'
+    || value === 'browser'
+    || value === 'vscode'
 }
 
 function employeeWorkflowPolicy(workflow: CompanionWorkflow): EmployeeWorkflowPolicy | undefined {
@@ -109,8 +125,11 @@ function employeeWorkflowPolicy(workflow: CompanionWorkflow): EmployeeWorkflowPo
   if (!metadata || metadata.employeeIntegration !== true)
     return undefined
 
-  const target = metadata.employeeTarget
-  if (target !== 'gmail' && target !== 'google-calendar' && target !== 'github' && target !== 'browser' && target !== 'vscode')
+  const rawTargets = Array.isArray(metadata.employeeTargets)
+    ? metadata.employeeTargets
+    : [metadata.employeeTarget]
+  const targets = new Set(rawTargets.filter(isEmployeeTarget))
+  if (!targets.size)
     return undefined
 
   const allowedHosts = new Set(
@@ -121,18 +140,36 @@ function employeeWorkflowPolicy(workflow: CompanionWorkflow): EmployeeWorkflowPo
           .filter(Boolean)
       : [],
   )
-  const workspacePath = typeof metadata.employeeWorkspacePath === 'string'
-    ? metadata.employeeWorkspacePath.trim() || undefined
-    : undefined
+  const workspacePaths = [
+    ...(Array.isArray(metadata.employeeWorkspacePaths)
+      ? metadata.employeeWorkspacePaths
+          .filter((path): path is string => typeof path === 'string')
+          .map(path => path.trim())
+          .filter(Boolean)
+      : []),
+    ...(typeof metadata.employeeWorkspacePath === 'string' && metadata.employeeWorkspacePath.trim()
+      ? [metadata.employeeWorkspacePath.trim()]
+      : []),
+  ].filter((path, index, values) => values.indexOf(path) === index)
   const playbook = Array.isArray(metadata.employeePlaybook)
     ? metadata.employeePlaybook
         .filter((rule): rule is string => typeof rule === 'string')
         .map(rule => rule.trim())
         .filter(Boolean)
-        .slice(0, 12)
+        .slice(0, 24)
     : []
+  const completionCriteria = typeof metadata.employeeCompletionCriteria === 'string'
+    ? metadata.employeeCompletionCriteria.trim() || undefined
+    : undefined
 
-  return { target, allowedHosts, workspacePath, playbook }
+  return {
+    targets,
+    allowedHosts,
+    workspacePaths,
+    playbook,
+    runner: metadata.employeeRunner === true,
+    completionCriteria,
+  }
 }
 
 function normalizePolicyPath(value: string) {
@@ -202,12 +239,8 @@ function normalizeAdaptiveWorkflowSteps(value: unknown, policy?: EmployeeWorkflo
           const url = new URL(safeAction.url)
           if (url.protocol !== 'http:' && url.protocol !== 'https:')
             continue
-          if (policy) {
-            if (policy.target === 'vscode' || !policy.allowedHosts.size)
-              continue
-            if (!policy.allowedHosts.has(url.hostname.toLowerCase()))
-              continue
-          }
+          if (policy && (!policy.allowedHosts.size || !policy.allowedHosts.has(url.hostname.toLowerCase())))
+            continue
           normalized.push({
             title,
             details,
@@ -225,7 +258,7 @@ function normalizeAdaptiveWorkflowSteps(value: unknown, policy?: EmployeeWorkflo
 
       if (safeAction.type === 'open-path' && typeof safeAction.path === 'string' && safeAction.path.trim()) {
         const path = safeAction.path.trim().slice(0, 1024)
-        if (policy && (policy.target !== 'vscode' || !policy.workspacePath || !pathWithinWorkspace(path, policy.workspacePath)))
+        if (policy && (!policy.workspacePaths.length || !policy.workspacePaths.some(workspacePath => pathWithinWorkspace(path, workspacePath))))
           continue
         normalized.push({
           title,
@@ -242,7 +275,7 @@ function normalizeAdaptiveWorkflowSteps(value: unknown, policy?: EmployeeWorkflo
 
       if (safeAction.type === 'open-vscode-workspace' && typeof safeAction.path === 'string' && safeAction.path.trim()) {
         const path = safeAction.path.trim().slice(0, 1024)
-        if (policy && (policy.target !== 'vscode' || !policy.workspacePath || !pathWithinWorkspace(path, policy.workspacePath)))
+        if (policy && (!policy.workspacePaths.length || !policy.workspacePaths.some(workspacePath => pathWithinWorkspace(path, workspacePath))))
           continue
         normalized.push({
           title,
@@ -263,6 +296,8 @@ function normalizeAdaptiveWorkflowSteps(value: unknown, policy?: EmployeeWorkflo
         .filter((item): item is string => typeof item === 'string')
         .slice(0, 40)
       if (argv.length < 2 || argv[0] !== 'invoke' || argv.some(item => !item.trim() || item.length > 500))
+        continue
+      if (policy?.runner && !computerUseCommandKnownToPlanner(argv))
         continue
 
       const requiresApproval = computerUseRequiresApproval(argv)
@@ -728,9 +763,11 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
       '',
       `Goal: ${workflow.goal}`,
       workflow.summary ? `Original summary: ${workflow.summary}` : '',
-      employeePolicy ? `Employee target scope: ${employeePolicy.target}` : '',
+      employeePolicy ? `Employee target scope: ${[...employeePolicy.targets].toSorted().join(', ')}` : '',
+      employeePolicy?.runner ? 'Employee runner mode: end-to-end multi-surface execution.' : '',
+      employeePolicy?.completionCriteria ? `Completion criteria: ${employeePolicy.completionCriteria}` : '',
       employeePolicy?.allowedHosts.size ? `Allowed web hosts: ${[...employeePolicy.allowedHosts].toSorted().join(', ')}` : '',
-      employeePolicy?.workspacePath ? `Allowed local workspace: ${employeePolicy.workspacePath}` : '',
+      employeePolicy?.workspacePaths.length ? `Allowed local workspaces: ${employeePolicy.workspacePaths.join(', ')}` : '',
       employeePolicy?.playbook.length ? `Employee playbook: ${employeePolicy.playbook.join(' ')}` : '',
       `Plan revision count: ${workflow.revisionCount ?? 0}/${MAX_WORKFLOW_REVISIONS}`,
       `Just executed step: ${input.stepTitle}`,
@@ -752,13 +789,17 @@ export const useProactiveCompanionStore = defineStore('proactive-companion', () 
       '- Do not weaken or bypass approval. State-changing computer-use actions may be proposed, but the runtime will force explicit approval.',
       employeePolicy ? '- This is an employee workflow. Stay inside the declared target scope. If the next step requires leaving that scope, pause instead of drifting into another service/workspace.' : '',
       employeePolicy?.allowedHosts.size ? '- For safe web navigation, only use one of the declared allowed web hosts.' : '',
-      employeePolicy?.workspacePath ? '- For safe local file/workspace actions, remain inside the declared local workspace path.' : '',
+      employeePolicy?.workspacePaths.length ? '- For safe local file/workspace actions, remain inside one of the declared local workspace paths.' : '',
+      employeePolicy?.runner ? '- In runner mode, keep working until the completion criteria are proven by observable evidence, an approval is required, or no safe next step exists.' : '',
+      employeePolicy?.runner ? '- If there are no remaining steps, choose continue only when the completion criteria are already proven by the current evidence. Otherwise choose replan or pause.' : '',
       '- Allowed step action shapes are only:',
       '  {"type":"safe-action","action":{"type":"open-url","url":"https://..."}}',
       '  {"type":"safe-action","action":{"type":"open-path","path":"absolute path"}}',
       '  {"type":"safe-action","action":{"type":"open-vscode-workspace","path":"absolute path"}}',
       '  {"type":"computer-use","argv":["invoke","command", "..."]}',
-      '- For computer-use, reuse known command shapes from the existing plan when possible. If unsure of the exact command, pause instead of inventing a destructive command.',
+      employeePolicy?.runner ? `- Known read-only AUV argv examples: ${computerUsePlannerCommandCatalog.readOnly.join(' ; ')}` : '',
+      employeePolicy?.runner ? `- Known state-changing AUV argv examples (approval is enforced automatically): ${computerUsePlannerCommandCatalog.stateChanging.join(' ; ')}` : '',
+      employeePolicy?.runner ? '- In runner mode, use only the known AUV command names above. Do not invent command names or flags.' : '- For computer-use, reuse known command shapes from the existing plan when possible. If unsure of the exact command, pause instead of inventing a destructive command.',
       '',
       'Required JSON schema:',
       '{"decision":"continue|replan|pause","reason":"short factual reason","steps":[{"title":"...","details":"optional","risk":"medium|high|critical","action":{...}}]}',
