@@ -15,7 +15,7 @@ type BuiltInStageModelRenderer = Exclude<StageModelRenderer, 'godot'>
 const useStageModelSelectionStore = defineStore('settings-stage-model-selection', () => {
   // Pinia synchronization owns live cross-window state. localStorage only
   // loads and saves the durable model selection.
-  const selected = useLocalStorageManualReset<string>('settings/stage/model', 'preset-live2d-1', {
+  const selected = useLocalStorageManualReset<string>('settings/stage/model', 'preset-vrm-1', {
     listenToStorageChanges: false,
   })
 
@@ -39,7 +39,19 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
   let legacyModelIdentityResetPromise: Promise<void> | undefined
-  const defaultStageModelId = 'preset-live2d-1'
+  const defaultStageModelId = 'preset-vrm-1'
+  const legacyDefaultStageModelId = 'preset-live2d-1'
+  const preferVrmMigrationKey = 'settings/stage/prefer-vrm-default-v1'
+
+  if (
+    typeof window !== 'undefined'
+    && stageModelSelectedState.value === legacyDefaultStageModelId
+    && window.localStorage.getItem(preferVrmMigrationKey) !== '1'
+  ) {
+    stageModelSelectedState.value = defaultStageModelId
+    window.localStorage.setItem(preferVrmMigrationKey, '1')
+  }
+
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
     set: (value) => {

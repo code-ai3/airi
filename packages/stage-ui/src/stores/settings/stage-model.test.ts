@@ -48,11 +48,11 @@ describe('settings stage model store', () => {
   // https://github.com/moeru-ai/airi/issues/1984
   it('issue #1984: falls back to the default preset when a custom stage model is missing', async () => {
     const fallbackModel: DisplayModelURL = {
-      id: 'preset-live2d-1',
-      format: DisplayModelFormat.Live2dZip,
+      id: 'preset-vrm-1',
+      format: DisplayModelFormat.VRM,
       type: 'url',
-      url: 'https://example.com/preset-live2d.zip',
-      name: 'Preset Live2D',
+      url: 'https://example.com/preset-vrm.vrm',
+      name: 'Preset VRM',
       importedAt: 1,
     }
 
@@ -73,7 +73,7 @@ describe('settings stage model store', () => {
     expect(store.stageModelSelected).toBe(fallbackModel.id)
     expect(store.stageModelSelectedDisplayModel).toEqual(fallbackModel)
     expect(store.stageModelSelectedUrl).toBe(fallbackModel.url)
-    expect(store.stageModelRenderer).toBe('live2d')
+    expect(store.stageModelRenderer).toBe('vrm')
     expect(getDisplayModelSpy).toHaveBeenCalledWith('display-model-missing')
     expect(getDisplayModelSpy).toHaveBeenCalledWith(fallbackModel.id)
     expect(resetLegacyModelIdentity).not.toHaveBeenCalled()
