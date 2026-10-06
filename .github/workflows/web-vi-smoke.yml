@@ -1,0 +1,41 @@
+name: Web Vietnamese smoke package
+
+on:
+  push:
+    branches:
+      - smoke/web-vi
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages
+        run: pnpm run build:packages
+
+      - name: Build AIRI Web
+        run: pnpm -F @proj-airi/stage-web run build
+
+      - name: Zip smoke package
+        run: cd apps/stage-web/dist && zip -r ../../../../AIRI-VI-Web-Smoke.zip .
+
+      - name: Publish temporary prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="web-smoke-vi-${{ github.run_id }}"
+          gh release create "$tag" "AIRI-VI-Web-Smoke.zip" --target "${{ github.sha }}" --title "AIRI Vietnamese Web Smoke ${{ github.run_id }}" --notes "Temporary web smoke build for Vietnamese UI validation." --prerelease
