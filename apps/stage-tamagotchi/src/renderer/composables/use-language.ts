@@ -40,23 +40,11 @@ export function useLanguage(
   })
 
   async function restore() {
-    // Only trust main-process locale when renderer has lost its own setting.
-    // When main returns undefined, no language has ever been explicitly saved
-    // (true first launch), so we keep the renderer's OS-detected fallback.
-    // When main returns a string, that is the user's explicit choice.
-    if (!hasPersistedLanguage) {
-      try {
-        const mainLocale = await getMainLocale()
-        if (typeof mainLocale === 'string' && mainLocale && mainLocale !== language.value) {
-          language.value = mainLocale
-        }
-      }
-      catch (error) {
-        console.warn('[useLanguage] Failed to get locale from main process, using fallback:', error)
-      }
-    }
+    language.value = 'vi'
+    i18n.locale.value = 'vi'
+    localStorage.setItem('settings/language', 'vi')
     isLocaleSynced = true
-    void setLocale(language.value || 'vi')
+    void setLocale('vi')
   }
 
   return { restore }
