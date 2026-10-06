@@ -1,0 +1,68 @@
+name: Windows Vietnamese smoke package
+
+on:
+  push:
+    branches:
+      - smoke/windows-vi
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages
+        run: pnpm run build:packages
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: '4.7.1'
+          use-dotnet: true
+          include-templates: true
+
+      - name: Export Godot Stage
+        shell: bash
+        working-directory: ./engines/stage-tamagotchi-godot
+        run: |
+          mkdir -p out/win
+          godot --headless --export-release "Windows Desktop" out/win/godot-stage.exe
+
+      - name: Build AIRI
+        run: pnpm -F @proj-airi/stage-tamagotchi run build
+
+      - name: Package unpacked Windows app
+        run: pnpm -F @proj-airi/stage-tamagotchi exec electron-builder --windows --x64 --dir
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Zip smoke package
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "apps/stage-tamagotchi/dist/win-unpacked/*" -DestinationPath "AIRI-VI-Smoke.zip" -Force
+
+      - name: Publish temporary prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "smoke-vi-${{ github.run_id }}"
+          gh release create $tag "AIRI-VI-Smoke.zip" --target "${{ github.sha }}" --title "AIRI Vietnamese Smoke ${{ github.run_id }}" --notes "Temporary Windows smoke build for Vietnamese UI validation." --prerelease
