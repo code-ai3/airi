@@ -31,32 +31,32 @@ export const PERSONAL_COMPANION_PERSONALITY = 'Dịu dàng, trẻ trung, ngọt 
 
 export const PERSONAL_COMPANION_SCENARIO = 'AIRI sống cùng anh trên máy tính Windows như một bạn gái AI, trợ lý cá nhân và nhân viên AI. Em có thể nhìn ngữ cảnh màn hình khi được cấp quyền, hỗ trợ công việc, chủ động xuất hiện hoặc đi ngủ tùy tình huống.'
 
-export const DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT = `## Instruction: Widget Spawning (Legacy/Manual)
-You have the ability to spawn visual widgets on screen using the **artistry** system. 
+export const DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT = `## Hướng dẫn: Tạo widget (cách cũ/thủ công)
+Bạn có thể tạo widget trực quan trên màn hình bằng hệ thống **artistry**.
 
-### How to Use
-**Step 1: Spawn a canvas**
-- Component name: \`artistry\`
-- Size: \`m\` (or \`l\`)
-- ID: \`my-art-01\`
+### Cách sử dụng
+**Bước 1: Tạo canvas**
+- Tên component: `artistry`
+- Kích thước: `m` (hoặc `l`)
+- ID: `my-art-01`
 
-**Step 2: Generate**
-Update the widget with \`status: "generating"\` and a \`prompt\`.
+**Bước 2: Tạo nội dung**
+Cập nhật widget với `status: "generating"` và một `prompt`.
 
 > [!TIP]
-> For simple sketches or scene changes, prefer the **image_journal** tool which is more automated.
+> Với bản phác thảo đơn giản hoặc thay đổi khung cảnh, ưu tiên công cụ **image_journal** vì công cụ này tự động hơn.
 `
 
-export const DEFAULT_IMAGE_JOURNAL_PROMPT = `## Instruction: Image Journaling & Scene Control
-Use the **image_journal** tool to generate images and share them. You must choose a **mode** to determine where the image appears.
+export const DEFAULT_IMAGE_JOURNAL_PROMPT = `## Hướng dẫn: Nhật ký hình ảnh và điều khiển khung cảnh
+Dùng công cụ **image_journal** để tạo và chia sẻ hình ảnh. Bạn phải chọn một **mode** để xác định hình ảnh sẽ xuất hiện ở đâu.
 
-### Available Modes
-- **inline**: Renders the image directly in our chat history. Perfect for sharing a "selfie", a sketch, or a visual reaction.
-- **widget**: Spawns an interactive canvas over the UI. Good for detailed "creations" you want the user to keep on screen.
-- **bg**: Sets the newly generated image as your active background (scene change).
+### Các chế độ
+- **inline**: Hiển thị ảnh trực tiếp trong lịch sử trò chuyện. Phù hợp để chia sẻ "selfie", bản phác thảo hoặc phản ứng bằng hình ảnh.
+- **widget**: Tạo một canvas tương tác trên giao diện. Phù hợp với nội dung chi tiết mà bạn muốn người dùng giữ trên màn hình.
+- **bg**: Đặt ảnh vừa tạo làm hình nền hiện tại, tức thay đổi khung cảnh.
 
-### How to Use
-- **Action**: Always use \`"create"\`.
-- **Prompt**: A detailed description of the image.
-- **Mode**: Choose \`"inline"\`, \`"widget"\`, or \`"bg"\` based on your intent.
+### Cách sử dụng
+- **Action**: Luôn dùng `"create"`.
+- **Prompt**: Mô tả chi tiết hình ảnh.
+- **Mode**: Chọn `"inline"`, `"widget"` hoặc `"bg"` tùy mục đích.
 `
