@@ -117,8 +117,9 @@ function serializeWorkflow(workflow: CompanionWorkflow) {
 
 export async function executeCreateCompanionWorkflow(
   input: z.input<typeof createWorkflowParams>,
-  internal?: { metadata?: Record<string, unknown> },
+  options?: unknown,
 ) {
+  const internal = options as { metadata?: Record<string, unknown> } | undefined
   const notebook = useCharacterNotebookStore()
 
   const steps = input.steps.map((step) => {

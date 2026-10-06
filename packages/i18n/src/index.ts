@@ -1,13 +1,5 @@
 export const all = {
-  'en': 'English',
-  'es': 'Español',
-  'fr': 'Français',
-  'ja': '日本語',
-  'ko': '한국어',
-  'ru': 'Русский',
-  'vi': 'Tiếng Việt',
-  'zh-Hans': '简体中文',
-  'zh-Hant': '繁體中文',
+  vi: 'Tiếng Việt',
 }
 
 export const localeRemap: Record<string, string> = {
@@ -39,7 +31,7 @@ export const localeRemap: Record<string, string> = {
 export function resolveSupportedLocale(
   locale: string | null | undefined,
   supportedLocales: readonly string[],
-  fallbackLocale = 'en',
+  fallbackLocale = 'vi',
 ): string {
   const normalizedLocale = localeRemap[locale ?? fallbackLocale] ?? locale ?? fallbackLocale
 

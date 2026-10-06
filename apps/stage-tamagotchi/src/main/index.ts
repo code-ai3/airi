@@ -185,9 +185,8 @@ app.whenReady().then(async () => {
       enabled: import.meta.env.VITE_DISTRIBUTION !== 'steam',
       getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
       setStoredUpdateLane: (lane) => {
-        const currentConfig = dependsOn.appConfig.get()
         dependsOn.appConfig.update({
-          language: currentConfig?.language ?? 'en',
+          language: 'vi',
           updateChannel: lane,
         })
       },
@@ -196,9 +195,8 @@ app.whenReady().then(async () => {
 
   const i18n = injeca.provide('libs:i18n', {
     dependsOn: { appConfig },
-    // Translated locales hold only the strings that are translated, so a missing
-    // key shows English, as it does in the renderers.
-    build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language, fallbackLocale: 'en' }),
+    // Bản dựng cá nhân này dùng tiếng Việt làm ngôn ngữ cố định cho giao diện desktop.
+    build: () => createI18n({ messages, locale: 'vi', fallbackLocale: 'vi' }),
   })
 
   const serverChannel = injeca.provide('modules:channel-server', {
