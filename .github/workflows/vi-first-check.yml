@@ -1,0 +1,42 @@
+name: Vietnamese-first validation
+
+on:
+  push:
+    branches:
+      - rebuild/vi-first
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Vietnamese-first build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck i18n
+        run: pnpm -F @proj-airi/i18n typecheck
+
+      - name: Typecheck stage-ui
+        run: pnpm -F @proj-airi/stage-ui typecheck
+
+      - name: Typecheck desktop
+        run: pnpm -F @proj-airi/stage-tamagotchi typecheck
+
+      - name: Build web
+        run: pnpm -F @proj-airi/stage-web run build
+
+      - name: Build desktop
+        run: pnpm -F @proj-airi/stage-tamagotchi run build
