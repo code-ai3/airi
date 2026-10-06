@@ -31,7 +31,7 @@ jobs:
         run: pnpm -F @proj-airi/stage-web run build
 
       - name: Zip smoke package
-        run: cd apps/stage-web/dist && zip -r ../../../../AIRI-VI-Web-Smoke.zip .
+        run: cd apps/stage-web/dist && zip -r ../../../AIRI-VI-Web-Smoke.zip .
 
       - name: Publish temporary prerelease
         env:
