@@ -32,10 +32,13 @@ export function useLanguage(
   // Guard: do not propagate the store's navigator.language fallback back
   // to main-process config before we have verified the correct locale.
   watch(language, () => {
-    i18n.locale.value = language.value || 'vi'
-    if (isLocaleSynced) {
-      void setLocale(language.value || 'vi')
-    }
+    if (language.value !== 'vi')
+      language.value = 'vi'
+
+    i18n.locale.value = 'vi'
+    localStorage.setItem('settings/language', 'vi')
+    if (isLocaleSynced)
+      void setLocale('vi')
   })
 
   async function restore() {
