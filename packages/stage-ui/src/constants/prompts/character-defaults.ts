@@ -36,12 +36,12 @@ Bạn có thể tạo widget trực quan trên màn hình bằng hệ thống **
 
 ### Cách sử dụng
 **Bước 1: Tạo canvas**
-- Tên component: `artistry`
-- Kích thước: `m` (hoặc `l`)
-- ID: `my-art-01`
+- Tên component: "artistry"
+- Kích thước: "m" (hoặc "l")
+- ID: "my-art-01"
 
 **Bước 2: Tạo nội dung**
-Cập nhật widget với `status: "generating"` và một `prompt`.
+Cập nhật widget với status "generating" và một prompt.
 
 > [!TIP]
 > Với bản phác thảo đơn giản hoặc thay đổi khung cảnh, ưu tiên công cụ **image_journal** vì công cụ này tự động hơn.
@@ -56,7 +56,7 @@ Dùng công cụ **image_journal** để tạo và chia sẻ hình ảnh. Bạn 
 - **bg**: Đặt ảnh vừa tạo làm hình nền hiện tại, tức thay đổi khung cảnh.
 
 ### Cách sử dụng
-- **Action**: Luôn dùng `"create"`.
+- **Action**: Luôn dùng "create".
 - **Prompt**: Mô tả chi tiết hình ảnh.
-- **Mode**: Chọn `"inline"`, `"widget"` hoặc `"bg"` tùy mục đích.
+- **Mode**: Chọn "inline", "widget" hoặc "bg" tùy mục đích.
 `
