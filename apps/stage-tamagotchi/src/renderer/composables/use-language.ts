@@ -33,9 +33,9 @@ export function useLanguage(
   // Guard: do not propagate the store's navigator.language fallback back
   // to main-process config before we have verified the correct locale.
   watch(language, () => {
-    i18n.locale.value = language.value || 'en'
+    i18n.locale.value = language.value || 'vi'
     if (isLocaleSynced) {
-      void setLocale(language.value || 'en')
+      void setLocale(language.value || 'vi')
     }
   })
 
@@ -56,7 +56,7 @@ export function useLanguage(
       }
     }
     isLocaleSynced = true
-    void setLocale(language.value || 'en')
+    void setLocale(language.value || 'vi')
   }
 
   return { restore }
