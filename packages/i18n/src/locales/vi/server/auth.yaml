@@ -68,6 +68,9 @@ signIn:
     terms: Điều khoản
     and: và
     privacy: Chính sách quyền riêng tư
+  email:
+    label: Địa chỉ email
+    placeholder: ban{'@'}example.com
 verifyEmail:
   title:
     pending: Kiểm tra hộp thư của bạn
@@ -85,6 +88,7 @@ forgotPassword:
   description: Hãy nhập địa chỉ email đã được liên kết với tài khoản của bạn và chúng tôi sẽ gửi bạn link để thiết lập lại.
   email:
     placeholder: bạn{'@'}example.com
+    label: Địa chỉ email
   action:
     send: Gửi link đặt lại
     backToSignIn: Trở lại đăng nhập
@@ -130,6 +134,7 @@ profile:
   field:
     emailVerified: Trạng thái email
     createdAt: Đã tham gia
+    email: Email
   label:
     verified: Đã xác thực
     unverified: Chưa xác thực
