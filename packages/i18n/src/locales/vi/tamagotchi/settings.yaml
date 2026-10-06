@@ -358,7 +358,7 @@ devtools:
           next-track: Chọn track tiếp theo
         timeline-label: Dòng thời gian chuyển động
         timeline-help: Kéo thước để tua. Dùng con lăn để phóng to/thu nhỏ. Giữ Shift và kéo để di chuyển vùng xem. Nhấp đúp vào đường cong đã chọn để thêm điểm. Mỗi khung khóa mục tiêu nhìn sẽ giữ nguyên cho đến khung khóa tiếp theo.
-        overlay-count: "{count} lớp phủ"
+        overlay-count: '{count} lớp phủ'
         controls:
           add: Thêm
           replace: Thay thế
@@ -401,12 +401,12 @@ devtools:
           run: Lần tạo
         status:
           no-source: Hãy nhập hoặc ghi một chuyển động trước
-          source-ready: "{count} mẫu · {duration}s"
+          source-ready: '{count} mẫu · {duration}s'
           fit-failed: Khớp mô hình VAR thất bại.
         values:
-          frames: "{count} khung hình"
-          model: "{channels} kênh · {features} thành phần"
-          fit: "{frames} khung hình · RMSE {error} · {duration}ms"
+          frames: '{count} khung hình'
+          model: '{channels} kênh · {features} thành phần'
+          fit: '{frames} khung hình · RMSE {error} · {duration}ms'
           run: seed {seed} · {duration}
       ar-hmm:
         title: Bộ tạo chuyển động nghỉ AR-HMM
@@ -434,14 +434,14 @@ devtools:
           run: Lần tạo
         status:
           no-source: Hãy nhập hoặc ghi một chuyển động trước
-          source-ready: "{count} mẫu · {duration}s"
+          source-ready: '{count} mẫu · {duration}s'
           fit-failed: Khớp mô hình AR-HMM thất bại.
         values:
-          count: "{count} trạng thái"
-          frames: "{count} khung hình"
-          model: "{states} trạng thái · {channels} kênh · {features} thành phần"
+          count: '{count} trạng thái'
+          frames: '{count} khung hình'
+          model: '{states} trạng thái · {channels} kênh · {features} thành phần'
           fit: log p/khung hình {likelihood} · {duration}ms
-          states: "{occupancy} · lưu trạng thái {dwell}s"
+          states: '{occupancy} · lưu trạng thái {dwell}s'
           run: trạng thái {state} · seed {seed} · {duration}
       output-filter:
         title: Bộ lọc đầu ra của bộ tạo
@@ -518,7 +518,7 @@ devtools:
           empty: Chưa có bản ghi chuyển động
           recording: Đang ghi chuyển động
           playing: Đang phát chuyển động
-          ready: "{count} mẫu · {duration}"
+          ready: '{count} mẫu · {duration}'
         import-error: Tệp này không phải là bản ghi chuyển động AIRI Live2D hợp lệ.
 screen-capture:
   permissions-prompt:
@@ -527,7 +527,7 @@ screen-capture:
     open-preferences: Mở Tùy chọn hệ thống
     dismiss: Bỏ qua
     instructions:
-      step-1: Mở "Tùy chọn hệ thống", chọn "Quyền riêng tư & Bảo mật" từ thanh bên.
+      step-1: 'Mở "Tùy chọn hệ thống", chọn "Quyền riêng tư & Bảo mật" từ thanh bên.'
       step-2: Trong phần "Ghi màn hình & Âm thanh hệ thống" và "Chỉ ghi âm thanh hệ thống", hãy bật công tắc cho AIRI.
       step-2-note: Nếu không thấy AIRI trong danh sách, vui lòng thêm thủ công bằng cách nhấn nút "+" và chọn AIRI từ thư mục Ứng dụng (Applications).
 microphone-permission:
