@@ -124,7 +124,7 @@ model-select:
     close: Đóng
     model:
       title: Mô hình
-      files: "{count} tệp"
+      files: '{count} tệp'
       types:
         cubism: Cubism {version} ({format})
         cubism-compatible: Cubism 3+ ({format})
@@ -135,13 +135,13 @@ model-select:
       expressions: Biểu cảm
       parameters: Tham số
       textures: Kết cấu
-      referenced-and-found: "{referenced} được tham chiếu · {found} được tìm thấy"
-      referenced: "{count} được tham chiếu"
-      found: "{count} được tìm thấy"
+      referenced-and-found: '{referenced} được tham chiếu · {found} được tìm thấy'
+      referenced: '{count} được tham chiếu'
+      found: '{count} được tìm thấy'
     issues:
       title: Vấn đề
-      errors: "{count} lỗi"
-      warnings: "{count} cảnh báo"
+      errors: '{count} lỗi'
+      warnings: '{count} cảnh báo'
       none: Không phát hiện vấn đề nào.
       how-to-fix: Cách khắc phục
       resolve-before-import: Khắc phục các lỗi trước khi nhập.
@@ -347,7 +347,7 @@ pages:
           confirmEmail:
             label: Nhập email để xác nhận
             mismatch: Email không khớp.
-            placeholder: ""
+            placeholder: ''
           confirm: Gửi email xác nhận
           cancel: Hủy
         message:
@@ -636,11 +636,11 @@ pages:
       model:
         label: Mô Hình Nghệ Thuật (Ghi Đè Tùy Chọn)
         description: Mã định danh mô hình nếu nhà cung cấp yêu cầu
-        placeholder: "Ví dụ: black-forest-labs/flux-schnell"
+        placeholder: 'Ví dụ: black-forest-labs/flux-schnell'
       prompt-prefix:
         label: Tiền Tố Prompt Nghệ Thuật Mặc Định
         description: Được thêm vào đầu mỗi prompt khi gửi đến trình tạo ảnh.
-        placeholder: "Ví dụ: masterpiece, high quality, 1girl, anime,"
+        placeholder: 'Ví dụ: masterpiece, high quality, 1girl, anime,'
       options:
         label: Tùy Chọn Nhà Cung Cấp Nghệ Thuật (JSON)
       widget-instructions:
@@ -847,7 +847,7 @@ pages:
         inferences-description: Mọi lần gọi mô hình thị giác, bao gồm cả ảnh trong trò chuyện
         failed-inferences: Số lần gọi thất bại
         last-inference: Lần gọi gần nhất
-        error: "Lỗi:"
+        error: 'Lỗi:'
         last-update: Cập nhật gần nhất {time}
         since-start: Từ khi ứng dụng khởi động
         never: Chưa bao giờ
@@ -856,7 +856,7 @@ pages:
         description: Điều khiển các cờ yêu cầu riêng của từng nhà cung cấp khi suy luận thị giác.
         thinking:
           label: Suy luận (Ollama)
-          description: "Khi bật, yêu cầu thị giác qua Ollama sẽ gửi `think: true`. Khi tắt, sẽ gửi `think: false`."
+          description: 'Khi bật, yêu cầu thị giác qua Ollama sẽ gửi `think: true`. Khi tắt, sẽ gửi `think: false`.'
     x:
       description: Sử Dụng Twitter
       enable: Bật tích hợp X / Twitter
