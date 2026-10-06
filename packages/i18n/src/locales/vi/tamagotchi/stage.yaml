@@ -30,6 +30,9 @@ docs:
   'logging-in': Đang đăng nhập...
   'account': Tài khoản
   'logout': Đăng xuất
+  hide-chat: Ẩn trò chuyện
+  mute: Tắt tiếng
+  unmute: Bật tiếng
 widgets:
   close: Đóng tiện ích
   empty:
@@ -51,6 +54,7 @@ notice:
     preparing: Đang chuẩn bị…
     read-more: Xem thêm
     preview-title: Đây là gì?
+    value: "0"
 about:
   subtitle: Phiên bản desktop
   current-version: Phiên Bản Hiện Tại
@@ -60,6 +64,7 @@ about:
     title: Các Liên Kết
     home: Trang chủ
     documentation: Tài liệu
+    github: GitHub
   update:
     lane:
       label: Luồng cập nhật
@@ -69,6 +74,9 @@ about:
       auto: Tự động
       stable: Ổn định
       nightly: Hàng ngày
+      alpha: Alpha
+      beta: Beta
+      canary: Canary
     status:
       downloading: Đang tải bản cập nhật...
       error-prefix: Lỗi
@@ -93,3 +101,19 @@ about:
       title: Có Bản Cập Nhật Mới
       description: Hiện đang có phiên bản mới (v{version}).
       no-release-notes-markdown: _Không có ghi chú phát hành nào được cung cấp._
+chat-window:
+  style:
+    title: Kiểu cửa sổ trò chuyện
+    legacy: Cửa sổ cổ điển
+    floating-attached: Nổi cạnh nhân vật
+    floating-free: Nổi ở bất kỳ đâu trên màn hình
+    floating-danmaku: Nổi dạng luồng tin nhắn
+    pinned: Luôn ở trên cùng
+  resize: Kéo để đổi kích thước khung trò chuyện
+  move: Kéo để di chuyển khung trò chuyện
+  fold: Ẩn trò chuyện
+  composer:
+    show: Hiện ô nhập tin nhắn
+    hide: Ẩn ô nhập tin nhắn
+inlay:
+  close: Đóng
