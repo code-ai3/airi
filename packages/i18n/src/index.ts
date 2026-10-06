@@ -1,5 +1,5 @@
 export const all = {
-  'vi': 'Tiếng Việt',
+  vi: 'Tiếng Việt',
 }
 
 export const localeRemap: Record<string, string> = {
