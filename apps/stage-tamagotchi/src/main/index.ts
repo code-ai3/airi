@@ -185,7 +185,6 @@ app.whenReady().then(async () => {
       enabled: import.meta.env.VITE_DISTRIBUTION !== 'steam',
       getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
       setStoredUpdateLane: (lane) => {
-        const currentConfig = dependsOn.appConfig.get()
         dependsOn.appConfig.update({
           language: 'vi',
           updateChannel: lane,
