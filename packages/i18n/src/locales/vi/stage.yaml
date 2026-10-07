@@ -60,9 +60,9 @@ render-error:
     Lỗi: {error}
 message: Nói gì đó...
 send-mode:
-  title: Gửi key
-  enter: Nhập
-  double-enter: Nhập hai lần
+  title: Phím gửi tin nhắn
+  enter: Enter
+  double-enter: Nhấn Enter hai lần
   ctrl-enter: Ctrl + Enter
 speech-output:
   mute: Tắt tiếng nói
