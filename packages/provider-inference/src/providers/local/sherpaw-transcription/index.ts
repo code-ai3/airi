@@ -50,7 +50,7 @@ export function createSherpawTranscriptionDefinition(host: SherpawTranscriptionH
     id: SHERPAW_TRANSCRIPTION_PROVIDER_ID,
     name: 'Sherpaw',
     nameLocalize: ({ t }) => t('settings.pages.providers.provider.sherpaw-transcription.title'),
-    description: 'Local speech recognition with bundled or on-demand models. No API key is required.',
+    description: 'Nhận diện giọng nói cục bộ với mô hình tích hợp sẵn hoặc tải khi cần. Không yêu cầu khóa API.',
     descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.sherpaw-transcription.description'),
     tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
     requiresCredentials: false,
