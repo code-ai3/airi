@@ -108,7 +108,7 @@ async function updateTopPEnabled(value: boolean) {
               v-model="activeProvider"
               name="provider"
               :value="metadata.id"
-              :title="metadata.localizedName || 'Unknown'"
+              :title="metadata.localizedName || 'Không xác định'"
               :description="metadata.localizedDescription"
               @update:model-value="persistSelection"
               @click="trackProviderClick(metadata.id, 'consciousness')"
