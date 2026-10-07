@@ -65,7 +65,7 @@ const {
 
 const voiceSearchQuery = ref('')
 const useSSML = ref(false)
-const testText = ref('Hello, my name is AI Assistant')
+const testText = ref('Xin chào, em là trợ lý AI của anh')
 const ssmlText = ref('')
 const isGenerating = ref(false)
 const audioUrl = ref('')
@@ -138,7 +138,7 @@ const displayedProviderModels = computed(() => {
       ...model,
       id: streamingModelOptionId(model.id),
       name: model.name,
-      description: model.description || 'Low-latency streaming TTS',
+      description: model.description || 'TTS phát trực tuyến độ trễ thấp',
     })),
   ]
 })
@@ -181,8 +181,8 @@ const displayedVoiceOptions = computed(() => {
     })
     .map(voice => ({
       id: voice.id,
-      name: voice.name,
-      description: voice.description,
+      name: voice.name === 'Voice Pack' ? 'Gói giọng nói' : voice.name,
+      description: voice.description === 'Server-curated voices' ? 'Các giọng nói được máy chủ tuyển chọn' : voice.description,
       previewURL: voice.previewURL,
       customizable: false,
     }))
@@ -766,7 +766,7 @@ async function handleDeleteProvider(providerId: string) {
         <div flex="~ col gap-4">
           <div>
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-              Voice Configuration
+              Cấu hình giọng nói
             </h2>
             <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-500">
               <span>Tùy chỉnh cách trợ lý AI của bạn nói</span>
