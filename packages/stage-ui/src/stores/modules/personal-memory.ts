@@ -95,8 +95,13 @@ export const usePersonalMemoryStore = defineStore('personal-memory', () => {
     [],
     persistenceOptions,
   )
+  const enabled = useLocalStorageManualReset<boolean>(
+    'companion/personal-memory-enabled',
+    true,
+    persistenceOptions,
+  )
 
-  const contextText = computed(() => buildContext(entries.value))
+  const contextText = computed(() => enabled.value ? buildContext(entries.value) : '')
 
   function upsertMemory(input: {
     kind: PersonalMemoryKind
@@ -159,6 +164,9 @@ export const usePersonalMemoryStore = defineStore('personal-memory', () => {
   }
 
   function rememberExplicit(value: string) {
+    if (!enabled.value)
+      return false
+
     return upsertMemory({
       kind: 'explicit',
       key: value,
@@ -169,7 +177,7 @@ export const usePersonalMemoryStore = defineStore('personal-memory', () => {
   }
 
   function learnFromUserMessage(message: string) {
-    if (!message || SENSITIVE_PATTERN.test(message))
+    if (!enabled.value || !message || SENSITIVE_PATTERN.test(message))
       return 0
 
     let changes = 0
@@ -282,6 +290,7 @@ export const usePersonalMemoryStore = defineStore('personal-memory', () => {
   }
 
   return {
+    enabled,
     entries,
     contextText,
     upsertMemory,
