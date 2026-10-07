@@ -48,11 +48,12 @@ export const providerGoogleGenerativeAI = defineProvider<GoogleGenerativeConfig,
     return {
       ...provider,
       chat(model: string, options?: ChatRequestOptions) {
-        const request = provider.chat(model === 'gemini-2.5-flash' ? 'gemini-3.5-flash' : model)
-        if (!options?.reasoning)
+        const resolvedModel = model === 'gemini-2.5-flash' ? 'gemini-3.5-flash-lite' : model
+        const request = provider.chat(resolvedModel)
+        if (options?.reasoning !== 'enabled')
           return request
 
-        return { ...request, reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none' }
+        return { ...request, reasoningEffort: 'medium' }
       },
     }
   },
