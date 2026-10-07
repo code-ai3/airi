@@ -660,9 +660,8 @@ async function handleDeleteProvider(providerId: string) {
             >
               <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
               <div class="flex flex-col">
-                <span class="font-medium">No Speech Providers Configured</span>
-                <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your speech
-                  providers</span>
+                <span class="font-medium">Chưa cấu hình nhà cung cấp giọng nói</span>
+                <span class="text-sm text-neutral-400 dark:text-neutral-500">Nhấp vào đây để thiết lập nhà cung cấp giọng nói</span>
               </div>
               <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
             </RouterLink>
@@ -687,8 +686,8 @@ async function handleDeleteProvider(providerId: string) {
           <div v-if="activeSpeechProvider === 'openai-compatible-audio-speech'">
             <FieldInput
               :model-value="activeSpeechModel || ''"
-              label="Model"
-              description="Enter the TTS model to use for speech generation"
+              label="Mô hình"
+              description="Nhập mô hình TTS dùng để tạo giọng nói"
               placeholder="tts-1"
               @update:model-value="updateCustomModelName"
             />
@@ -713,8 +712,8 @@ async function handleDeleteProvider(providerId: string) {
 
               <FieldInput
                 :model-value="activeSpeechModel || ''"
-                label="Model"
-                description="Enter model name manually if model discovery fails"
+                label="Mô hình"
+                description="Nhập tên mô hình thủ công nếu không thể tự tìm mô hình"
                 :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
                 @update:model-value="updateCustomModelName"
               />
@@ -733,8 +732,8 @@ async function handleDeleteProvider(providerId: string) {
 
               <FieldInput
                 :model-value="activeSpeechModel || ''"
-                label="Model"
-                description="Enter model name manually when no models are returned"
+                label="Mô hình"
+                description="Nhập tên mô hình thủ công khi nhà cung cấp không trả về danh sách mô hình"
                 :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
                 @update:model-value="updateCustomModelName"
               />
@@ -762,7 +761,7 @@ async function handleDeleteProvider(providerId: string) {
         </div>
       </div>
 
-      <!-- Voice Configuration Section -->
+      <!-- Cấu hình giọng nói Section -->
       <div v-if="activeSpeechProvider && activeSpeechProvider !== 'speech-noop'">
         <div flex="~ col gap-4">
           <div>
@@ -770,9 +769,9 @@ async function handleDeleteProvider(providerId: string) {
               Voice Configuration
             </h2>
             <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-500">
-              <span>Customize how your AI assistant speaks</span>
+              <span>Tùy chỉnh cách trợ lý AI của bạn nói</span>
               <span v-if="currentSpeechVoiceId" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">
-                Current voice: {{ currentSpeechVoiceId }}
+                Giọng hiện tại: {{ currentSpeechVoiceId }}
               </span>
             </div>
           </div>
@@ -830,7 +829,7 @@ async function handleDeleteProvider(providerId: string) {
           <ErrorContainer
             v-else-if="speechProviderError"
             class="mb-2"
-            title="Error loading voices"
+            title="Không thể tải danh sách giọng nói"
             :error="speechProviderError"
           />
 
@@ -854,16 +853,16 @@ async function handleDeleteProvider(providerId: string) {
           <div flex="~ col gap-4">
             <FieldRange
               v-model="pitch"
-              label="Pitch"
-              description="Tune the pitch of the voice"
+              label="Cao độ"
+              description="Điều chỉnh độ cao của giọng nói"
               :min="-100" :max="100" :step="1"
               :format-value="value => `${value}%`"
             />
             <!-- SSML Support -->
             <FieldCheckbox
               v-model="ssmlEnabled"
-              label="Enable SSML"
-              description="Enable Speech Synthesis Markup Language for more control over speech output"
+              label="Bật SSML"
+              description="Bật Ngôn ngữ đánh dấu tổng hợp giọng nói để kiểm soát đầu ra giọng nói tốt hơn"
             />
           </div>
 
@@ -875,9 +874,9 @@ async function handleDeleteProvider(providerId: string) {
             <FieldInput
               type="text"
               :model-value="activeSpeechVoiceId || ''"
-              label="Voice Name"
-              description="Enter the voice name for your custom voice"
-              placeholder="Enter voice name (e.g., 'alloy', 'echo')"
+              label="Tên giọng nói"
+              description="Nhập tên giọng nói tùy chỉnh"
+              placeholder="Nhập tên giọng (ví dụ: 'alloy', 'echo')"
               @change="commitCustomVoiceSelection"
               @update:model-value="updateCustomVoiceName"
             />
@@ -885,7 +884,7 @@ async function handleDeleteProvider(providerId: string) {
             <!-- Model selection for ElevenLabs -->
             <div v-if="activeSpeechProvider === 'elevenlabs'">
               <label class="mb-1 block text-sm font-medium">
-                Model
+                Mô hình
               </label>
               <select
                 v-model="displayedSpeechModel"
@@ -924,8 +923,8 @@ async function handleDeleteProvider(providerId: string) {
         <div flex="~ col gap-4">
           <FieldCheckbox
             v-model="useSSML"
-            label="Use Custom SSML"
-            description="Enable to input raw SSML instead of plain text"
+            label="Dùng SSML tùy chỉnh"
+            description="Bật để nhập SSML trực tiếp thay cho văn bản thường"
           />
 
           <template v-if="!useSSML">
@@ -938,7 +937,7 @@ async function handleDeleteProvider(providerId: string) {
           <template v-else>
             <textarea
               v-model="ssmlText"
-              placeholder="Enter SSML text..."
+              placeholder="Nhập nội dung SSML..."
               border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
               transition="all duration-250 ease-in-out"
               bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
