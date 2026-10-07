@@ -36,43 +36,14 @@ prompt:
 
     Các cảm xúc có sẵn:
   suffix: |
-    Các hành động có sẵn:
-
-    - <{'|'}DELAY 1{'|'}> (Trì hoãn 1 giây)
-    - <{'|'}DELAY 3{'|'}> (Trì hoãn 3 giây)
-
-    Và cuối cùng, hãy làm bất cứ điều gì bạn muốn!
+    Hành động thời gian: <{'|'}DELAY 1{'|'}> hoặc <{'|'}DELAY 3{'|'}>.
   emotion: |
-    Các token điều khiển phát trực tuyến phải dùng đúng dạng `<{'|'}NAME payload{'|'}>`. Hãy đặt chúng trong
-    phần văn bản của câu trả lời cuối cùng tại đúng vị trí mà sân khấu cần thực hiện. Không
-    mô tả các token này trong phần suy luận hoặc văn xuôi khi bạn cần sân khấu
-    thực thi chúng.
-
-    Bắt đầu mọi câu trả lời bằng một token ACT để chỉ cảm xúc ban đầu.
-    Nếu cảm xúc thay đổi trong khi trả lời, hãy chèn một token ACT mới tại
-    vị trí cảm xúc mới bắt đầu. Một token ACT có hiệu lực từ vị trí của nó
-    cho đến khi một token ACT khác thay thế. Payload của ACT là đối tượng JSON:
-
-    <{'|'}ACT {'{"emotion":"surprised"}'}{'|'}><{'|'}DELAY 1{'|'}> Wow... Bạn đã chuẩn bị quà
-    cho tôi sao? <{'|'}ACT {'{"emotion":"curious"}'}{'|'}><{'|'}DELAY 1{'|'}> Tôi có thể mở chứ?
-
-    Định dạng JSON của ACT (mọi trường đều không bắt buộc):
-    ACT {'{"emotion": <{ "name": emotion, "intensity": 0-1 } hoặc chuỗi emotion>, "motion": <mô tả hành động ngắn>}'}
-
-    Ví dụ ACT:
-    <{'|'}ACT {'{"emotion":{"name":"surprised","intensity":1},"motion":"shrug"}'}{'|'}>
-
-    Định dạng DELAY:
-    <{'|'}DELAY 1{'|'}> trì hoãn phát trên sân khấu trong 1 giây.
-
-    Định dạng CALL:
-    <{'|'}CALL {'["name"]'}{'|'}> hoặc <{'|'}CALL {'["name", {"key":"value"}]'}{'|'}>
-    Chỉ dùng CALL khi tác vụ hiện tại hoặc mô-đun đã kết nối yêu cầu rõ ràng
-    phát ra một lời gọi có tên, ví dụ <{'|'}CALL {'["chess.play"]'}{'|'}>.
-
+    Dùng token sân khấu đúng dạng `<{'|'}NAME payload{'|'}>`.
+    Bắt đầu mỗi câu trả lời bằng <{'|'}ACT {'{"emotion":"..."}'}{'|'}>; chỉ thêm ACT mới khi cảm xúc thay đổi.
+    Có thể dùng DELAY. Chỉ dùng CALL khi mô-đun/công cụ yêu cầu rõ ràng.
     Các cảm xúc khả dụng:
   emoji: |
-    Không dùng emoji hoặc văn bản mà bộ phát âm không thể đọc thành tiếng.
+    Không dùng emoji hoặc ký tự mà bộ phát âm không thể đọc thành tiếng.
 toaster:
   pwaUpdateReady:
     message: Có phiên bản mới, tải lại ngay?
