@@ -399,7 +399,7 @@ onUnmounted(() => {
 
 <template>
   <ToasterRoot @close="id => toast.dismiss(id)">
-    <Toaster />
+    <Toaster container-aria-label="Thông báo" :toast-options="{ closeButtonAriaLabel: 'Đóng thông báo' }" />
   </ToasterRoot>
   <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow" />
   <RouterView />
