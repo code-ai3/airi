@@ -398,10 +398,10 @@ onUnmounted(() => {
         <div>
           <FieldCombobox
             v-model="selectedAudioInput"
-            label="Audio Input Device"
-            description="Select the audio input device for your hearing module."
+            label="Thiết bị âm thanh đầu vào"
+            description="Chọn thiết bị âm thanh đầu vào cho mô-đun nghe."
             :options="audioInputOptions"
-            placeholder="Select an audio input device"
+            placeholder="Chọn thiết bị âm thanh đầu vào"
             layout="vertical"
           />
         </div>
@@ -466,8 +466,8 @@ onUnmounted(() => {
               >
                 <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
                 <div class="flex flex-col">
-                  <span class="font-medium">No Providers Configured</span>
-                  <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your Transcription providers</span>
+                  <span class="font-medium">Chưa cấu hình nhà cung cấp</span>
+                  <span class="text-sm text-neutral-400 dark:text-neutral-500">Nhấp vào đây để thiết lập nhà cung cấp phiên âm</span>
                 </div>
                 <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
               </RouterLink>
@@ -492,7 +492,7 @@ onUnmounted(() => {
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}
                 </span>
                 <span v-else>
-                  Enter the transcription model to use (e.g., 'whisper-1', 'gpt-4o-transcribe')
+                  Nhập mô hình phiên âm muốn dùng (ví dụ: 'whisper-1', 'gpt-4o-transcribe')
                 </span>
                 <span v-if="activeTranscriptionModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeTranscriptionModel }}</span>
               </div>
@@ -589,29 +589,29 @@ onUnmounted(() => {
         <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
           <div class="mb-4">
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
-              Auto-send Settings
+              Cài đặt tự động gửi
             </h2>
             <div text="neutral-400 dark:neutral-400">
-              Configure automatic sending of transcribed text to chat
+              Cấu hình tự động gửi văn bản đã phiên âm vào trò chuyện
             </div>
           </div>
 
           <div class="space-y-4">
             <FieldCheckbox
               v-model="autoSendEnabled"
-              label="Auto-send transcribed text"
-              description="Automatically send transcribed text to chat after a delay. This may consume tokens, so disable if you want to manually review and edit transcriptions before sending."
+              label="Tự động gửi văn bản đã phiên âm"
+              description="Tự động gửi văn bản đã phiên âm vào trò chuyện sau một khoảng trễ. Tắt tùy chọn này nếu bạn muốn kiểm tra và chỉnh sửa nội dung trước khi gửi."
             />
 
             <FieldRange
               v-if="autoSendEnabled"
               v-model="autoSendDelay"
-              label="Auto-send delay"
-              description="Delay in milliseconds before automatically sending transcribed text (0 = send immediately, recommended: 1000-3000ms)"
+              label="Độ trễ tự động gửi"
+              description="Độ trễ tính bằng mili giây trước khi tự động gửi văn bản (0 = gửi ngay, khuyến nghị: 1000-3000 ms)"
               :min="0"
               :max="10000"
               :step="100"
-              :format-value="value => value === 0 ? 'Immediate' : `${(value / 1000).toFixed(1)}s`"
+              :format-value="value => value === 0 ? 'Ngay lập tức' : `${(value / 1000).toFixed(1)}s`"
             />
           </div>
         </div>
@@ -663,25 +663,25 @@ onUnmounted(() => {
             <!-- Audio Level Visualization -->
             <div class="space-y-3">
               <!-- Volume Meter -->
-              <LevelMeter :level="volumeLevel" label="Input Level" />
+              <LevelMeter :level="volumeLevel" label="Mức âm đầu vào" />
 
               <!-- VAD Probability Meter (when VAD model is active) -->
               <ThresholdMeter
                 v-if="useVADModel && loadedVAD"
                 :value="isSpeechProb"
                 :threshold="useVADThreshold"
-                label="Probability of Speech"
-                below-label="Silence"
-                above-label="Speech"
-                threshold-label="Detection threshold"
+                label="Xác suất có giọng nói"
+                below-label="Im lặng"
+                above-label="Có giọng nói"
+                threshold-label="Ngưỡng phát hiện"
               />
 
               <!-- Threshold Controls -->
               <div v-if="useVADModel && loadedVAD" class="space-y-3">
                 <FieldRange
                   v-model="useVADThreshold"
-                  label="Sensitivity"
-                  description="Adjust the threshold for speech detection"
+                  label="Độ nhạy"
+                  description="Điều chỉnh ngưỡng phát hiện giọng nói"
                   :min="0.1"
                   :max="0.9"
                   :step="0.05"
@@ -690,8 +690,8 @@ onUnmounted(() => {
 
                 <FieldRange
                   v-model="useVADMinSilenceDurationMs"
-                  label="Pause Before Stop"
-                  description="How long silence must last before speech is considered finished"
+                  label="Khoảng im lặng trước khi dừng"
+                  description="Thời gian im lặng cần thiết để coi lời nói đã kết thúc"
                   :min="200"
                   :max="1500"
                   :step="50"
@@ -718,10 +718,10 @@ onUnmounted(() => {
                   :class="speakingIndicatorClass"
                 />
                 <span class="text-sm font-medium">
-                  {{ isSpeech ? 'Speaking Detected' : 'Silence' }}
+                  {{ isSpeech ? 'Đã phát hiện giọng nói' : 'Im lặng' }}
                 </span>
                 <span class="ml-auto text-xs text-neutral-500">
-                  {{ useVADModel && loadedVAD ? 'Model Based' : 'Volume Based' }}
+                  {{ useVADModel && loadedVAD ? 'Dựa trên mô hình' : 'Dựa trên âm lượng' }}
                 </span>
               </div>
 
@@ -729,28 +729,28 @@ onUnmounted(() => {
               <div class="border-t border-neutral-200 pt-3 dark:border-neutral-700">
                 <FieldCheckbox
                   v-model="useVADModel"
-                  label="Model Based"
-                  description="Use AI models for more accurate speech detection"
+                  label="Dựa trên mô hình"
+                  description="Dùng mô hình AI để phát hiện giọng nói chính xác hơn"
                 />
 
                 <!-- VAD Model Status -->
                 <div v-if="useVADModel" class="mt-3 space-y-2">
                   <div v-if="loadingVAD" class="flex items-center gap-2 text-primary-600 dark:text-primary-400">
                     <div class="animate-spin text-sm" i-solar:spinner-line-duotone />
-                    <span class="text-sm">Loading...</span>
+                    <span class="text-sm">Đang tải...</span>
                   </div>
 
                   <ErrorContainer
                     v-else-if="vadModelError"
-                    title="Inference error"
+                    title="Lỗi suy luận"
                     :error="vadModelError"
                   />
 
                   <div v-else-if="loadedVAD" class="flex items-center gap-2 text-green-600 dark:text-green-400">
                     <div class="text-sm" i-solar:check-circle-bold-duotone />
-                    <span class="text-sm">Activated</span>
+                    <span class="text-sm">Đã kích hoạt</span>
                     <span class="ml-auto text-xs text-neutral-500">
-                      Probability: {{ (isSpeechProb * 100).toFixed(1) }}%
+                      Xác suất: {{ (isSpeechProb * 100).toFixed(1) }}%
                     </span>
                   </div>
                 </div>
@@ -763,12 +763,12 @@ onUnmounted(() => {
                 :current-value="isSpeechProb"
                 :threshold="useVADThreshold"
                 :is-active="isSpeech"
-                title="Voice Activity"
-                subtitle="Last 2 seconds"
-                active-label="Speaking"
-                active-legend-label="Voice detected"
-                inactive-legend-label="Silence"
-                threshold-label="Speech threshold"
+                title="Hoạt động giọng nói"
+                subtitle="2 giây gần nhất"
+                active-label="Đang nói"
+                active-legend-label="Đã phát hiện giọng nói"
+                inactive-legend-label="Im lặng"
+                threshold-label="Ngưỡng giọng nói"
                 :format-threshold="formatVADThreshold"
               />
             </div>
