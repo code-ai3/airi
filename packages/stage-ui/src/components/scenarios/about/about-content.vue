@@ -10,12 +10,12 @@ const props = withDefaults(defineProps<{
   buildInfo?: AboutBuildInfo
   links?: AboutLink[]
 }>(), {
-  title: 'Project',
+  title: 'Dự án',
   highlight: 'AIRI',
   subtitle: '',
   links: () => ([
-    { label: 'Home', href: 'https://airi.moeru.ai/docs/', icon: 'i-solar:home-smile-outline' },
-    { label: 'Documentations', href: 'https://airi.moeru.ai/docs/en/docs/overview/', icon: 'i-solar:document-add-outline' },
+    { label: 'Trang chủ', href: 'https://airi.moeru.ai/docs/', icon: 'i-solar:home-smile-outline' },
+    { label: 'Tài liệu', href: 'https://airi.moeru.ai/docs/en/docs/overview/', icon: 'i-solar:document-add-outline' },
     { label: 'GitHub', href: 'https://github.com/moeru-ai/airi', icon: 'i-simple-icons:github' },
   ]),
 })
@@ -45,12 +45,12 @@ const hasBuildInfo = computed(() => {
 
     <div v-if="hasBuildInfo" :class="['flex-1']">
       <div :class="['text-neutral-500 dark:text-neutral-400']">
-        Application build information
+        Thông tin bản dựng ứng dụng
       </div>
       <div :class="['mt-4', 'grid grid-cols-[120px_1fr]', 'gap-2', 'text-sm']">
         <template v-if="buildInfo?.version">
           <div :class="['text-neutral-500 dark:text-neutral-400']">
-            Version
+            Phiên bản
           </div>
           <div :class="['font-mono']">
             {{ buildInfo.version }}
@@ -58,7 +58,7 @@ const hasBuildInfo = computed(() => {
         </template>
         <template v-if="buildInfo?.branch">
           <div :class="['text-neutral-500 dark:text-neutral-400']">
-            Branch
+            Nhánh
           </div>
           <div :class="['font-mono']">
             {{ buildInfo.branch }}
@@ -74,7 +74,7 @@ const hasBuildInfo = computed(() => {
         </template>
         <template v-if="buildInfo?.builtOn">
           <div :class="['text-neutral-500 dark:text-neutral-400']">
-            Built on
+            Thời gian dựng
           </div>
           <div :class="['font-mono']">
             {{ buildInfo.builtOn }}
@@ -87,7 +87,7 @@ const hasBuildInfo = computed(() => {
 
     <div :class="['my-10']">
       <div :class="['text-neutral-500 dark:text-neutral-400']">
-        About
+        Giới thiệu
       </div>
       <div :class="['mt-4 flex flex-col gap-2']">
         <a
