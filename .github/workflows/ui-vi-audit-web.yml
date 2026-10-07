@@ -1,0 +1,35 @@
+name: Vietnamese UI audit web build
+
+on:
+  push:
+    branches:
+      - smoke/ui-vi-audit
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build workspace packages
+        run: pnpm run build:packages
+      - name: Build AIRI Web
+        run: pnpm -F @proj-airi/stage-web run build
+      - name: Zip audit build
+        run: cd apps/stage-web/dist && zip -r ../../../AIRI-VI-UI-Audit.zip .
+      - name: Publish temporary prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="ui-vi-audit-${{ github.run_id }}"
+          gh release create "$tag" "AIRI-VI-UI-Audit.zip" --target "${{ github.sha }}" --title "AIRI Vietnamese UI Audit ${{ github.run_id }}" --notes "Temporary web build for Vietnamese UI audit." --prerelease
