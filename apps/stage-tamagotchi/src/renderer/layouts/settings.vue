@@ -126,6 +126,7 @@ const filteredNavItems = computed(() => {
 
 const isBongCardPage = computed(() => route.path === '/settings/airi-card')
 const isOverviewPage = computed(() => route.path === '/settings')
+const routeIcon = computed(() => typeof route.meta.icon === 'string' ? route.meta.icon : 'i-solar:settings-line-duotone')
 
 function navigate(to: string) {
   void router.push(to)
@@ -223,7 +224,7 @@ function handleSearchEnter() {
         <div ref="scrollContainer" class="bong-settings-scroll">
           <div v-if="!isBongCardPage && !isOverviewPage && routeHeaderMetadata" class="bong-route-heading">
             <div class="bong-route-heading__icon">
-              <span :class="route.meta.icon as string || 'i-solar:settings-line-duotone'" />
+              <span :class="routeIcon" />
             </div>
             <div>
               <h2>{{ routeHeaderMetadata.title }}</h2>
