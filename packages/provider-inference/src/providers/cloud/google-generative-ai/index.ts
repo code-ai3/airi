@@ -48,7 +48,7 @@ export const providerGoogleGenerativeAI = defineProvider<GoogleGenerativeConfig,
     return {
       ...provider,
       chat(model: string, options?: ChatRequestOptions) {
-        const request = provider.chat(model === 'gemini-2.5-flash' ? 'gemini-3.8-flash' : model)
+        const request = provider.chat(model === 'gemini-2.5-flash' ? 'gemini-3.6-flash' : model)
         if (!options?.reasoning)
           return request
 
