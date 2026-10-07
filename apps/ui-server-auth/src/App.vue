@@ -31,7 +31,7 @@ watch(themeSettings.themeColorsHueDynamic, () => {
   <div>
     <RouterView />
     <ToasterRoot @close="id => toast.dismiss(id)">
-      <Toaster />
+      <Toaster container-aria-label="Thông báo" :toast-options="{ closeButtonAriaLabel: 'Đóng thông báo' }" />
     </ToasterRoot>
   </div>
 </template>
