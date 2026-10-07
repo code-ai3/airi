@@ -97,6 +97,10 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       await localforage.iterate<BackgroundEntry, void>((val, key) => {
         if (key.startsWith(STORAGE_PREFIX) || key.startsWith('builtin:')) {
           const entry = { ...val, id: key }
+          const builtin = BUILTIN_BACKGROUNDS.find(item => item.id === key)
+          if (builtin)
+            entry.title = builtin.title
+
           if (entry.blob instanceof Blob) {
             ensureObjectUrl(key, entry.blob)
           }
@@ -119,7 +123,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
               id: newId,
               type: 'journal',
               characterId: val.characterId,
-              title: val.title || 'Migrated Journal Image',
+              title: val.title || 'Ảnh nhật ký đã chuyển đổi',
               blob: val.blob,
               prompt: val.prompt,
               createdAt: val.createdAt || Date.now(),
