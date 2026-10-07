@@ -290,7 +290,7 @@ const providerBlocks = computed(() => {
 
       <template #item="{ item: provider }">
         <IconStatusItem
-          :title="provider.localizedName || 'Unknown'"
+          :title="provider.localizedName || 'Không xác định'"
           :description="provider.localizedDescription"
           :icon="provider.icon"
           :icon-color="provider.iconColor"
