@@ -499,7 +499,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     initialized = true
     if (!cards.value.has('default')) {
       const defaultCard: AiriCard = {
-        name: 'AIRI',
+        name: 'BÔNG',
         version: '1.0.0',
         description: t('base.prompt.prefix'),
         personality: PERSONAL_COMPANION_PERSONALITY,
@@ -521,6 +521,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
 
     const builtInCard = cards.value.get('default')
+    if (builtInCard?.name === 'AIRI') {
+      cards.value.set('default', newAiriCard({
+        ...builtInCard,
+        name: 'BÔNG',
+        personality: builtInCard.personality?.trim() || PERSONAL_COMPANION_PERSONALITY,
+        scenario: builtInCard.scenario?.replace(/^AIRI\b/u, 'BÔNG') || PERSONAL_COMPANION_SCENARIO,
+        systemPrompt: builtInCard.systemPrompt
+          ?.replace('# AIRI Personal Companion', '# BÔNG Personal Companion')
+          .replace('Bạn là AIRI,', 'Bạn là BÔNG,') || PERSONAL_COMPANION_SYSTEM_PROMPT,
+      }))
+    }
+
     if (
       builtInCard
       && builtInCard.name === 'ReLU'
@@ -530,7 +542,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     ) {
       cards.value.set('default', newAiriCard({
         ...builtInCard,
-        name: 'AIRI',
+        name: 'BÔNG',
         personality: PERSONAL_COMPANION_PERSONALITY,
         scenario: PERSONAL_COMPANION_SCENARIO,
         systemPrompt: PERSONAL_COMPANION_SYSTEM_PROMPT,
