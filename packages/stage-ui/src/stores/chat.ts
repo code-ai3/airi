@@ -560,6 +560,9 @@ export const useChatStore = defineStore('chat', () => {
     if (normalized.includes('rate limit') || normalized.includes('too many requests') || /(^|\D)429(\D|$)/.test(message))
       return 'Đã vượt quá giới hạn yêu cầu của nhà cung cấp AI. Hãy chờ một lúc rồi thử lại.'
 
+    if (normalized.includes('high demand') || normalized.includes('unavailable') || /(^|\D)503(\D|$)/.test(message))
+      return 'Mô hình AI đang quá tải tạm thời. AIRI sẽ cần đổi sang mô hình ổn định hơn hoặc thử lại sau ít phút.'
+
     console.error('[chat] Provider error:', error)
     return 'Không thể hoàn tất yêu cầu trò chuyện. Hãy kiểm tra nhà cung cấp AI, mô hình và kết nối rồi thử lại.'
   }
