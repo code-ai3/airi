@@ -26,12 +26,12 @@ const BUILTIN_BACKGROUNDS = [
   {
     id: 'builtin:cozy-tea-corner',
     url: cozyTeaCornerInPastelHuesUrl,
-    title: 'Cozy tea corner in pastel hues',
+    title: 'Góc trà ấm cúng với tông màu pastel',
   },
   {
     id: 'builtin:cute-streaming-room',
     url: cuteStreamingRoomWithPastelDecorUrl,
-    title: 'Cute streaming room with pastel decor',
+    title: 'Phòng livestream dễ thương với trang trí pastel',
   },
 ]
 
