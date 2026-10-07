@@ -246,7 +246,7 @@ function openCardManager() {
           <div class="bong-preview-image">
             <img
               v-if="!previewFailed"
-              src="/bong-preview.png"
+              src="/bong-preview.webp"
               alt="Ảnh xem trước BÔNG"
               @error="previewFailed = true"
             >
