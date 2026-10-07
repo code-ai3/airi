@@ -89,8 +89,8 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
     </ChatToolbarButton>
     <ChatToolbarButton
       data-testid="about-button"
-      title="About"
-      aria-label="About"
+      :title="t('stage.mobile-tools.about')"
+      :aria-label="t('stage.mobile-tools.about')"
       @click="aboutOpen = true"
     >
       <div class="i-solar:info-circle-outline size-5" />
