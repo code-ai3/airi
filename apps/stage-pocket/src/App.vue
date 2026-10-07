@@ -205,7 +205,7 @@ const extraSteps = computed(() => [
     </StageTransitionGroup>
 
     <ToasterRoot @close="id => toast.dismiss(id)">
-      <Toaster rich-colors />
+      <Toaster rich-colors container-aria-label="Thông báo" :toast-options="{ closeButtonAriaLabel: 'Đóng thông báo' }" />
     </ToasterRoot>
 
     <!-- First Time Setup Dialog -->
