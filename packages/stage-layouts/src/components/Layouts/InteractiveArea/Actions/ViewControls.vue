@@ -47,13 +47,13 @@ function isThreeControl(targetMode: string): targetMode is typeof threeSupported
 }
 
 function controlLabel(control: string) {
-  if (stageModelRenderer.value === 'live2d' && isL2dControl(control))
-    return l2dCtrlConf[control].buttonText
+  const label = stageModelRenderer.value === 'live2d' && isL2dControl(control)
+    ? l2dCtrlConf[control].buttonText
+    : stageModelRenderer.value === 'vrm' && isThreeControl(control)
+      ? threeCtrlConf[control].buttonText
+      : control
 
-  if (stageModelRenderer.value === 'vrm' && isThreeControl(control))
-    return threeCtrlConf[control].buttonText
-
-  return control
+  return label === 'Scale' ? 'Tỷ lệ' : label
 }
 
 function handleViewControlsToggle(targetMode: string) {
