@@ -43,7 +43,7 @@ const props = withDefaults(defineProps<{
   canRetry: false,
   canDelete: true,
   copyText: '',
-  menuLabel: 'Message actions',
+  menuLabel: 'Thao tác tin nhắn',
   placement: 'right',
   pressFeedbackEnabled: false,
   scrollContainer: null,
