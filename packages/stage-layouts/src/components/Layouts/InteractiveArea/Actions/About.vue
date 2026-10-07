@@ -15,8 +15,8 @@ const show = defineModel<boolean>({ default: false })
 const buildInfo = useBuildInfo()
 
 const aboutLinks = [
-  { label: 'Home', href: 'https://airi.moeru.ai/docs/', icon: 'i-solar:home-smile-outline' },
-  { label: 'Documentations', href: 'https://airi.moeru.ai/docs/en/docs/overview/', icon: 'i-solar:document-add-outline' },
+  { label: 'Trang chủ', href: 'https://airi.moeru.ai/docs/', icon: 'i-solar:home-smile-outline' },
+  { label: 'Tài liệu', href: 'https://airi.moeru.ai/docs/en/docs/overview/', icon: 'i-solar:document-add-outline' },
   { label: 'GitHub', href: 'https://github.com/moeru-ai/airi', icon: 'i-simple-icons:github' },
 ]
 
@@ -30,7 +30,7 @@ const edition = isStageTamagotchi()
 <template>
   <button
     v-if="!hideTrigger"
-    title="About"
+    :title="t('stage.mobile-tools.about')" 
     :class="[
       'w-fit p-2',
       'flex justify-center md:items-center self-end',
