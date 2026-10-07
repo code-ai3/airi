@@ -32,15 +32,15 @@ export const useBackgroundStore = defineStore('background', () => {
   const presets: BackgroundItem[] = [
     {
       id: 'colorful-wave',
-      label: 'Colorful Wave',
-      description: 'Animated wave on cross grid',
+      label: 'Sóng sắc màu',
+      description: 'Sóng chuyển động trên nền lưới',
       kind: BackgroundKind.Wave,
       component: markRaw(DefaultBackgroundPreview),
     },
     {
       id: 'transparent',
-      label: 'Transparent',
-      description: 'Reveal the native background behind the WebView',
+      label: 'Trong suốt',
+      description: 'Hiển thị nền gốc phía sau cửa sổ AIRI',
       kind: BackgroundKind.Transparent,
       component: markRaw(TransparentBackgroundPreview),
     },
