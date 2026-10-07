@@ -153,7 +153,7 @@ function handleSearchEnter() {
           <img
             v-if="!logoFailed"
             class="bong-brand__image"
-            src="/bong-logo.png"
+            src="/bong-logo.webp"
             alt="BÔNG"
             @error="logoFailed = true"
           >
