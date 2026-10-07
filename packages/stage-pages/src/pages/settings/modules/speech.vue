@@ -84,7 +84,7 @@ const selectableSpeechSources = computed(() => {
     .map(metadata => ({
       id: metadata.id,
       providerId: metadata.id,
-      title: metadata.localizedName || 'Unknown',
+      title: metadata.localizedName || 'Không xác định',
       description: metadata.localizedDescription,
     }))
 
@@ -95,7 +95,7 @@ const selectableSpeechSources = computed(() => {
       .map(metadata => ({
         id: metadata.id,
         providerId: metadata.id,
-        title: metadata.localizedName || 'Unknown',
+        title: metadata.localizedName || 'Không xác định',
         description: metadata.localizedDescription,
       })),
   ]
@@ -109,7 +109,7 @@ const displayedSpeechSource = computed({
   },
   set: (value: string) => {
     void selectSpeechSource(value).catch((error) => {
-      errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+      errorMessage.value = errorMessageFrom(error) ?? 'Đã xảy ra lỗi không xác định'
     })
   },
 })
@@ -149,7 +149,7 @@ const displayedSpeechModel = computed({
     : activeSpeechModel.value,
   set: (value: string) => {
     void selectSpeechModel(value).catch((error) => {
-      errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+      errorMessage.value = errorMessageFrom(error) ?? 'Đã xảy ra lỗi không xác định'
     })
   },
 })
@@ -355,7 +355,7 @@ onMounted(async () => {
   }
   catch (error) {
     // Closing a renderer rejects pending RPCs even after its page unmounts.
-    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+    errorMessage.value = errorMessageFrom(error) ?? 'Đã xảy ra lỗi không xác định'
   }
 })
 
@@ -377,7 +377,7 @@ watch(activeSpeechProvider, async (newProvider) => {
   catch (error) {
     // An obsolete provider request must not replace the current form error.
     if (newProvider === activeSpeechProvider.value)
-      errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+      errorMessage.value = errorMessageFrom(error) ?? 'Đã xảy ra lỗi không xác định'
   }
 })
 
@@ -522,7 +522,7 @@ async function generateTestSpeech() {
   }
   catch (error) {
     console.error('Error generating speech:', error)
-    errorMessage.value = errorMessageFrom(error) || 'An unknown error occurred'
+    errorMessage.value = errorMessageFrom(error) || 'Đã xảy ra lỗi không xác định'
   }
   finally {
     isGenerating.value = false
@@ -583,7 +583,7 @@ async function updateCustomModelName(value: string | undefined) {
     await persistSelection()
   }
   catch (error) {
-    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+    errorMessage.value = errorMessageFrom(error) ?? 'Đã xảy ra lỗi không xác định'
   }
 }
 
