@@ -211,7 +211,7 @@ const providerBlocks = computed(() => {
           <template #chat>
             <div bg="primary-500/10 dark:primary-800/25" inline-flex items-center gap-1 rounded-lg px-2 py-0.5 translate-y="[0.25lh]">
               <div i-solar:chat-square-like-bold-duotone />
-              <strong class="font-normal">Chat</strong>
+              <strong class="font-normal">Trò chuyện</strong>
             </div>
           </template>
         </i18n-t>
@@ -290,7 +290,7 @@ const providerBlocks = computed(() => {
 
       <template #item="{ item: provider }">
         <IconStatusItem
-          :title="provider.localizedName || 'Unknown'"
+          :title="provider.localizedName || 'Không xác định'"
           :description="provider.localizedDescription"
           :icon="provider.icon"
           :icon-color="provider.iconColor"

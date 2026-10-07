@@ -176,10 +176,10 @@ onUnmounted(() => {
     <div mb-2>
       <FieldCombobox
         v-model="selectedAudioInput"
-        label="Audio Input Device"
-        description="Select the audio input device for your hearing module."
+        label="Thiết bị âm thanh đầu vào"
+        description="Chọn thiết bị âm thanh đầu vào cho mô-đun nghe."
         :options="audioInputOptions"
-        placeholder="Select an audio input device"
+        placeholder="Chọn thiết bị âm thanh đầu vào"
         layout="vertical"
         h-fit w-full
       />
@@ -209,23 +209,23 @@ onUnmounted(() => {
     <!-- Audio Level Visualization -->
     <div class="space-y-3">
       <!-- Volume Meter -->
-      <LevelMeter :level="volumeLevel" label="Input Level" />
+      <LevelMeter :level="volumeLevel" label="Mức âm đầu vào" />
 
       <!-- VAD Probability Meter (when VAD model is active) -->
       <ThresholdMeter
         :value="volumeLevel / 100"
         :threshold="speakingThreshold / 100"
-        label="Probability of Speech"
-        below-label="Silence"
-        above-label="Speech"
-        threshold-label="Detection threshold"
+        label="Xác suất có giọng nói"
+        below-label="Im lặng"
+        above-label="Có giọng nói"
+        threshold-label="Ngưỡng phát hiện"
       />
 
       <div class="space-y-3">
         <FieldRange
           v-model="speakingThreshold"
-          label="Sensitivity"
-          description="Adjust the threshold for speech detection"
+          label="Độ nhạy"
+          description="Điều chỉnh ngưỡng phát hiện giọng nói"
           :min="1"
           :max="80"
           :step="1"

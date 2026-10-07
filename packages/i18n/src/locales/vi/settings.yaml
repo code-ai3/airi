@@ -58,6 +58,9 @@ dialogs:
       optionalHint: Bạn vẫn có thể tiếp tục ngay cả khi chưa cấp các quyền này.
       stateGranted: Đã cấp quyền
       stateNotGranted: Không được cấp quyền
+    testGeneration: Kiểm tra API
+    testGenerationRunning: Đang kiểm tra...
+    flux: Flux
   bug-report:
     title: Báo lỗi (´;ω;`)ヾ(･∀･`)
     subtitle: Úi, xin lỗi nếu chúng tôi đã làm gì sai. Nếu không phiền thì bạn có thể kể cho chúng tôi biết chuyện gì đã xảy ra không?
@@ -114,6 +117,38 @@ model-select:
     import: Nhập
     remove: Xóa
     confirm: Xác nhận
+  live2d-report:
+    title: Trước khi nhập
+    description: Xem lại dữ liệu mô hình và mọi vấn đề được phát hiện trong tệp lưu trữ.
+    description-short: Xem lại dữ liệu và các vấn đề của mô hình.
+    close: Đóng
+    model:
+      title: Mô hình
+      files: '{count} tệp'
+      types:
+        cubism: Cubism {version} ({format})
+        cubism-compatible: Cubism 3+ ({format})
+        unknown: Không xác định
+    resources:
+      title: Tài nguyên
+      motions: Chuyển động
+      expressions: Biểu cảm
+      parameters: Tham số
+      textures: Kết cấu
+      referenced-and-found: '{referenced} được tham chiếu · {found} được tìm thấy'
+      referenced: '{count} được tham chiếu'
+      found: '{count} được tìm thấy'
+    issues:
+      title: Vấn đề
+      errors: '{count} lỗi'
+      warnings: '{count} cảnh báo'
+      none: Không phát hiện vấn đề nào.
+      how-to-fix: Cách khắc phục
+      resolve-before-import: Khắc phục các lỗi trước khi nhập.
+    actions:
+      cancel: Hủy
+      confirm: Xác nhận nhập
+      import-anyway: Vẫn nhập
 live2d:
   change-model:
     from-file: Tải từ tệp
@@ -131,6 +166,8 @@ live2d:
   scale-and-position:
     title: Tỉ lệ và vị trí
     scale: Tỉ lệ
+    x: X
+    y: Y
   switch-to-vrm:
     title: Chuyển sang mô hình 3D?
     change-to-vrm: Bấm vào đây để đổi sang cài đặt mô hình 3D (VRM)
@@ -167,12 +204,42 @@ live2d:
       placeholder: Chọn hoạt ảnh
       disable-motion: Tắt
       disable-motion-description: Tắt hoạt ảnh nhàn rỗi
+    motion-driver:
+      title: Bộ điều khiển chuyển động
+      description: Chọn cách AIRI tạo chuyển động cơ thể và mắt khi ở trạng thái nghỉ.
+      options:
+        universal:
+          title: Phổ dụng
+          description: Sử dụng chuyển động của mô hình, chuyển động mắt khi nghỉ và theo dõi chuột.
+        magic:
+          title: MAGIC
+          description: Tạo chuyển động từ bộ dữ liệu MAGIC đi kèm.
+      magic:
+        profile:
+          title: Hồ sơ MAGIC
+          description: Chọn bộ dữ liệu chuyển động đi kèm phù hợp với bộ điều khiển MAGIC.
+          options:
+            idle-calm:
+              title: Nghỉ / bình tĩnh
+              description: Sử dụng bản ghi chuyển động nghỉ và bình tĩnh đi kèm.
+            speaking-excited:
+              title: Đang nói / phấn khích
+              description: Sử dụng bản ghi chuyển động nói và phấn khích đi kèm.
+        skip-mouth-open:
+          title: Bỏ qua chuyển động mở miệng được tạo
+          description: Giữ cơ chế đồng bộ môi theo lời nói làm bộ điều khiển chính. Tắt tùy chọn này để dùng chuyển động mở miệng từ hồ sơ.
+        force-view-target:
+          title: Buộc mục tiêu nhìn về phía trước
+          description: Giữ mắt hướng về phía trước trong khi MAGIC di chuyển đầu.
   parameters:
     title: Tham số mô hình
     render-scale:
       title: Tỉ lệ render
     fps:
       description: Giới hạn tốc độ khung hình render
+      title: FPS
+      options:
+        unlimited: ∞
     shadow: Đổ bóng
     reset-parameters: Đặt lại tham số mặc định
   clear-model-cache: Xóa bộ nhớ đệm của mô hình
@@ -280,6 +347,7 @@ pages:
           confirmEmail:
             label: Nhập email để xác nhận
             mismatch: Email không khớp.
+            placeholder: ''
           confirm: Gửi email xác nhận
           cancel: Hủy
         message:
@@ -361,7 +429,15 @@ pages:
         systemprompt: 'Lỗi: Hãy cung cấp lời nhắc hệ thống'
         posthistoryinstructions: 'Lỗi: Cần có lịch sử đăng lời nhắc'
         invalid_artistry_json: 'Các tùy chọn cho nhà cung cấp nghệ thuật (Nghệ thuật provider) chứa JSON không hợp lệ.'
+        model_required: Hãy chọn một mô hình cho từng nhà cung cấp được chỉ định. Không thể kế thừa mô hình từ một nhà cung cấp khác.
       none: Không
+      sections:
+        chat: Trò chuyện
+        vision: Thị giác
+        speech: Giọng nói
+        body: Cơ thể
+      inherit_global_settings: Kế thừa cài đặt chung
+      none_disabled: Không dùng (Đã tắt)
     modules: Mô-đun
     name_asc: Tên (A-Z)
     name_desc: Tên (Z-A)
@@ -389,6 +465,14 @@ pages:
     import_invalid_file: Tệp gói thẻ không hợp lệ
     upload: Tải lên
     upload_desc: Nhấp hoặc kéo thả gói thẻ AIRI vào đây để nhập
+    back: Quay lại
+    saved: Đã lưu thẻ
+    unsaved:
+      badge: Chưa lưu
+      title: Hủy các thay đổi?
+      message: Các thay đổi của bạn chưa được lưu. Nếu rời trang này, bạn sẽ mất chúng.
+      keep_editing: Tiếp tục chỉnh sửa
+      discard: Hủy các thay đổi
   memory:
     description: Nơi lưu trữ và tổ chức ký ức
     title: Bộ nhớ
@@ -451,8 +535,10 @@ pages:
       section:
         live2d:
           description: Cấu hình mô hình Live2D
+          title: Live2D
         vrm:
           description: Cấu hình mô hình 3D VRM
+          title: VRM
         scene: Bối cảnh
   modules:
     beat_sync:
@@ -550,9 +636,11 @@ pages:
       model:
         label: Mô Hình Nghệ Thuật (Ghi Đè Tùy Chọn)
         description: Mã định danh mô hình nếu nhà cung cấp yêu cầu
+        placeholder: 'Ví dụ: black-forest-labs/flux-schnell'
       prompt-prefix:
         label: Tiền Tố Prompt Nghệ Thuật Mặc Định
         description: Được thêm vào đầu mỗi prompt khi gửi đến trình tạo ảnh.
+        placeholder: 'Ví dụ: masterpiece, high quality, 1girl, anime,'
       options:
         label: Tùy Chọn Nhà Cung Cấp Nghệ Thuật (JSON)
       widget-instructions:
@@ -592,6 +680,13 @@ pages:
             show_more: Hiện thêm
             subtitle: Chọn một mô hình mặc định từ nhà cung cấp
             title: Mô hình
+            temperature_label: Độ ngẫu nhiên (Temperature)
+            temperature_enabled: Tùy chỉnh Temperature
+            top_p_enabled: Tùy chỉnh Top P
+            sampling_override_description: Mặc định tắt. Chỉ bật nếu mô hình của bạn hỗ trợ tham số này. Một số mô hình chỉ chấp nhận một tham số lấy mẫu tại một thời điểm.
+            temperature_description: Điều khiển mức độ ngẫu nhiên trong đầu ra của mô hình. Giá trị thấp hơn (ví dụ 0,2) cho kết quả ổn định, chính xác và thiên về phân tích hơn; giá trị cao hơn (ví dụ 1,0) làm tăng tính sáng tạo và đa dạng.
+            top_p_label: Top P
+            top_p_description: Điều khiển độ đa dạng của đầu ra bằng lấy mẫu nucleus. Giá trị thấp hơn (ví dụ 0,2) giới hạn đầu ra vào các token có xác suất cao; giá trị cao hơn (ví dụ 1,0) cho phép phạm vi khả năng rộng hơn.
           model-options:
             title: Tùy chọn mô hình
             thinking:
@@ -611,6 +706,7 @@ pages:
       username-description: Tên người dùng của bạn trên máy chủ Factorio
       username-placeholder: Nhập tên người dùng Factorio của bạn
       configured: Đã cấu hình Factorio thành công!
+      title: Factorio
     gaming-minecraft:
       description: Chơi Minecraft!
       enable: Bật tích hợp Minecraft
@@ -641,6 +737,7 @@ pages:
         no-runtime-context: Chưa ghi nhận ngữ cảnh nào từ bot
         last-context-seconds: 'Ngữ cảnh bot gần nhất: {seconds} giây trước'
         last-context-stale: 'Ngữ cảnh bot gần nhất: Đã cũ'
+      title: Minecraft
     hearing:
       description: Cấu hình nhận diện giọng nói
       title: Nghe
@@ -684,6 +781,7 @@ pages:
       token-description: Mã token bot Discord của bạn
       token-placeholder: Nhập mã token bot Discord của bạn
       configured: Đã cấu hình Discord thành công!
+      title: Discord
     speech:
       description: Tổng hợp giọng nói
       sections:
@@ -733,6 +831,32 @@ pages:
     vision:
       description: Thị giác
       title: Thị giác
+      tool-images:
+        label: Dùng mô hình thị giác cho hình ảnh từ công cụ
+        description: Mô hình thị giác sẽ đọc các hình ảnh do công cụ trả về, chẳng hạn ảnh chụp màn hình từ Điều khiển máy tính, trước khi mô hình trò chuyện phản hồi. Nếu nhà cung cấp của mô hình trò chuyện hỗ trợ đầu vào hình ảnh, ảnh sẽ được gửi trực tiếp cho mô hình đó. Mô tả ảnh không chứa tọa độ điểm ảnh.
+      capture:
+        title: Tần suất chụp hình cho thị giác
+        description: Điều chỉnh tần suất bộ thị giác chụp một khung hình.
+        interval:
+          label: Khoảng thời gian chụp
+          description: Giá trị thấp hơn sẽ chụp thường xuyên hơn và dùng nhiều tài nguyên hơn.
+      stats:
+        captures: Số lần chụp
+        context-updates: Số lần cập nhật ngữ cảnh
+        inferences: Số lần gọi nhận dạng hình ảnh
+        inferences-description: Mọi lần gọi mô hình thị giác, bao gồm cả ảnh trong trò chuyện
+        failed-inferences: Số lần gọi thất bại
+        last-inference: Lần gọi gần nhất
+        error: 'Lỗi:'
+        last-update: Cập nhật gần nhất {time}
+        since-start: Từ khi ứng dụng khởi động
+        never: Chưa bao giờ
+      ollama:
+        title: Tùy chọn yêu cầu theo nhà cung cấp
+        description: Điều khiển các cờ yêu cầu riêng của từng nhà cung cấp khi suy luận thị giác.
+        thinking:
+          label: Suy luận (Ollama)
+          description: 'Khi bật, yêu cầu thị giác qua Ollama sẽ gửi `think: true`. Khi tắt, sẽ gửi `think: false`.'
     x:
       description: Sử Dụng Twitter
       enable: Bật tích hợp X / Twitter
@@ -750,6 +874,7 @@ pages:
       access-token-secret-description: Bí mật mã truy cập X / Twitter của bạn
       access-token-secret-placeholder: Nhập bí mật mã truy cập X / Twitter của bạn
       configured: Đã cấu hình X / Twitter thành công!
+      title: X / Twitter
     web-search:
       title: Tìm kiếm trên web
       description: Cho phép AIRI tìm kiếm trên web để lấy thông tin mới nhất
@@ -805,6 +930,10 @@ pages:
         args:
           label: Đối số
           description: Mỗi dòng một đối số, theo thứ tự.
+          placeholder: |-
+            -y
+            some-package-name
+            /tmp
         cwd:
           label: Thư mục làm việc
           description: Thư mục tùy chọn được dùng làm thư mục làm việc của tiến trình.

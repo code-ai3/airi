@@ -1,4 +1,4 @@
-import type { BrowserWindow } from 'electron'
+import type { BrowserWindow, MenuItemConstructorOptions } from 'electron'
 
 import type { FileLoggerHandle } from './app/file-logger'
 
@@ -13,7 +13,7 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
-import { app, ipcMain, protocol, session } from 'electron'
+import { app, ipcMain, Menu, protocol, session } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
@@ -156,11 +156,66 @@ if (shouldStartMainProcess) {
 let fileLogger: FileLoggerHandle = nullFileLoggerHandle
 let skipFileLogging = false
 
+function setupVietnameseApplicationMenu() {
+  const template: MenuItemConstructorOptions[] = [
+    {
+      label: 'Tệp',
+      submenu: [
+        { role: 'close', label: 'Đóng cửa sổ' },
+        { type: 'separator' },
+        { role: 'quit', label: 'Thoát BÔNG' },
+      ],
+    },
+    {
+      label: 'Chỉnh sửa',
+      submenu: [
+        { role: 'undo', label: 'Hoàn tác' },
+        { role: 'redo', label: 'Làm lại' },
+        { type: 'separator' },
+        { role: 'cut', label: 'Cắt' },
+        { role: 'copy', label: 'Sao chép' },
+        { role: 'paste', label: 'Dán' },
+        { role: 'selectAll', label: 'Chọn tất cả' },
+      ],
+    },
+    {
+      label: 'Xem',
+      submenu: [
+        { role: 'reload', label: 'Tải lại' },
+        { role: 'forceReload', label: 'Tải lại hoàn toàn' },
+        ...(is.dev ? [{ role: 'toggleDevTools' as const, label: 'Công cụ phát triển' }] : []),
+        { type: 'separator' },
+        { role: 'resetZoom', label: 'Kích thước mặc định' },
+        { role: 'zoomIn', label: 'Phóng to' },
+        { role: 'zoomOut', label: 'Thu nhỏ' },
+        { type: 'separator' },
+        { role: 'togglefullscreen', label: 'Toàn màn hình' },
+      ],
+    },
+    {
+      label: 'Cửa sổ',
+      submenu: [
+        { role: 'minimize', label: 'Thu nhỏ' },
+        { role: 'zoom', label: 'Phóng cửa sổ' },
+      ],
+    },
+    {
+      label: 'Trợ giúp',
+      submenu: [
+        { label: 'BÔNG · Trợ lý AI của riêng anh', enabled: false },
+      ],
+    },
+  ]
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
+
 app.whenReady().then(async () => {
   if (!shouldStartMainProcess) {
     return
   }
 
+  setupVietnameseApplicationMenu()
   setupSherpawModelAssetsProtocol(resolve(getElectronMainDirname(), '..', 'renderer'))
   setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
@@ -185,9 +240,8 @@ app.whenReady().then(async () => {
       enabled: import.meta.env.VITE_DISTRIBUTION !== 'steam',
       getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
       setStoredUpdateLane: (lane) => {
-        const currentConfig = dependsOn.appConfig.get()
         dependsOn.appConfig.update({
-          language: currentConfig?.language ?? 'en',
+          language: 'vi',
           updateChannel: lane,
         })
       },
@@ -196,9 +250,8 @@ app.whenReady().then(async () => {
 
   const i18n = injeca.provide('libs:i18n', {
     dependsOn: { appConfig },
-    // Translated locales hold only the strings that are translated, so a missing
-    // key shows English, as it does in the renderers.
-    build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language, fallbackLocale: 'en' }),
+    // Bản dựng cá nhân này dùng tiếng Việt làm ngôn ngữ cố định cho giao diện desktop.
+    build: () => createI18n({ messages, locale: 'vi', fallbackLocale: 'vi' }),
   })
 
   const serverChannel = injeca.provide('modules:channel-server', {

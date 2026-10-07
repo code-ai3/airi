@@ -32,7 +32,7 @@ import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
-import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { createMinecraftContext, createPersonalMemoryContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { describeChatImages, replaceToolResultImages } from './chat/image-projection'
 import { useChatSessionStore } from './chat/session-store'
@@ -41,6 +41,7 @@ import { useContextObservabilityStore } from './devtools/context-observability'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { usePersonalMemoryStore } from './modules/personal-memory'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { executeToolCallRerun } from './tool-call-rerun'
@@ -188,6 +189,7 @@ export const useChatStore = defineStore('chat', () => {
   // without its paired prompt-injection defense.
   useWebSearchStore()
   const consciousnessStore = useConsciousnessStore()
+  const personalMemoryStore = usePersonalMemoryStore()
   const chatVision = useChatVision()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
@@ -461,6 +463,7 @@ export const useChatStore = defineStore('chat', () => {
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
+      () => createPersonalMemoryContext(personalMemoryStore.contextText),
       createMinecraftContext,
     ],
     createId: nanoid,
@@ -471,6 +474,7 @@ export const useChatStore = defineStore('chat', () => {
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
     onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
+      personalMemoryStore.learnFromUserMessage(messageText)
       analyticsHooks.onUserMessageAppended?.({
         sessionId,
         message,
@@ -540,13 +544,36 @@ export const useChatStore = defineStore('chat', () => {
     return [...names].map(name => ({ name }))
   }
 
+  function formatChatError(error: unknown) {
+    const message = errorMessageFrom(error) ?? ''
+    const normalized = message.toLowerCase()
+
+    if (normalized.includes('payment_required') || normalized.includes('insufficient flux') || /(^|\D)402(\D|$)/.test(message))
+      return 'Nhà cung cấp AI báo tài khoản hoặc hạn mức hiện tại không đủ để xử lý yêu cầu. Hãy đổi nhà cung cấp hoặc mô hình, hoặc kiểm tra hạn mức tài khoản.'
+
+    if (normalized.includes('unauthorized') || /(^|\D)401(\D|$)/.test(message))
+      return 'Khóa API hoặc thông tin xác thực không hợp lệ. Hãy kiểm tra lại cấu hình nhà cung cấp AI.'
+
+    if (normalized.includes('forbidden') || /(^|\D)403(\D|$)/.test(message))
+      return 'Nhà cung cấp AI từ chối yêu cầu này. Hãy kiểm tra quyền truy cập của tài khoản hoặc khóa API.'
+
+    if (normalized.includes('rate limit') || normalized.includes('too many requests') || /(^|\D)429(\D|$)/.test(message))
+      return 'Đã vượt quá giới hạn yêu cầu của nhà cung cấp AI. Hãy chờ một lúc rồi thử lại.'
+
+    if (normalized.includes('high demand') || normalized.includes('unavailable') || /(^|\D)503(\D|$)/.test(message))
+      return 'Mô hình AI đang quá tải tạm thời. AIRI sẽ cần đổi sang mô hình ổn định hơn hoặc thử lại sau ít phút.'
+
+    console.error('[chat] Provider error:', error)
+    return 'Không thể hoàn tất yêu cầu trò chuyện. Hãy kiểm tra nhà cung cấp AI, mô hình và kết nối rồi thử lại.'
+  }
+
   function appendSendError(sessionId: string, error: unknown) {
     if (!chatSession.getSessionMessagesIfLoaded(sessionId))
       return
 
     chatSession.appendSessionMessage(sessionId, {
       role: 'error',
-      content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
+      content: formatChatError(error),
     })
   }
 
@@ -554,15 +581,15 @@ export const useChatStore = defineStore('chat', () => {
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
-      throw new Error('No active chat provider or model configured')
+      throw new Error('Chưa cấu hình nhà cung cấp AI hoặc mô hình trò chuyện')
 
     if (!await chatSession.loadSession(payload.sessionId))
-      throw new Error('Failed to load the target chat session')
+      throw new Error('Không thể tải phiên trò chuyện hiện tại')
 
     const messageCount = chatSession.getSessionMessages(payload.sessionId).length
     const chatProvider = await consciousnessStore.getChatProviderInstance(providerId)
     if (!chatProvider)
-      throw new Error(`Failed to resolve chat provider "${providerId}"`)
+      throw new Error(`Không thể khởi tạo nhà cung cấp AI "${providerId}"`)
 
     await runtime.ingest(payload.text, {
       model: modelId,

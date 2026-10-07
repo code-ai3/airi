@@ -1,6 +1,9 @@
+import type {} from 'pinia-plugin-synced'
+
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
 export type NotebookEntryKind = 'note' | 'diary' | 'focus'
 
@@ -15,6 +18,111 @@ export interface NotebookEntry {
 
 export type TaskPriority = 'low' | 'normal' | 'high' | 'critical'
 export type TaskStatus = 'queued' | 'scheduled' | 'done' | 'dropped'
+export type TaskAutonomy = 'remind' | 'safe-auto'
+
+export type TaskRecurrence
+  = | { type: 'interval', everyMinutes: number }
+    | { type: 'daily', hour: number, minute: number }
+    | { type: 'weekly', daysOfWeek: number[], hour: number, minute: number }
+
+export type TaskSafeAction
+  = | { type: 'open-url', url: string }
+    | { type: 'open-path', path: string }
+    | { type: 'open-vscode-workspace', path: string }
+
+export type CompanionApprovalRisk = 'medium' | 'high' | 'critical'
+export type CompanionApprovalStatus = 'pending' | 'approved' | 'executing' | 'rejected' | 'completed' | 'failed' | 'expired'
+
+export interface CompanionComputerUseAction {
+  type: 'computer-use'
+  argv: string[]
+}
+
+export interface CompanionApprovalRequest {
+  id: string
+  title: string
+  reason?: string
+  risk: CompanionApprovalRisk
+  action: CompanionComputerUseAction
+  status: CompanionApprovalStatus
+  workflowId?: string
+  workflowStepId?: string
+  createdAt: number
+  updatedAt: number
+  resolvedAt?: number
+  expiresAt?: number
+  executionStartedAt?: number
+  executedAt?: number
+  result?: string
+}
+
+export type CompanionActivityStatus = 'info' | 'success' | 'warning' | 'error'
+
+export interface CompanionActivityLogEntry {
+  id: string
+  kind: string
+  title: string
+  details?: string
+  status: CompanionActivityStatus
+  createdAt: number
+  metadata?: Record<string, unknown>
+}
+
+export type CompanionWorkflowStatus
+  = | 'scheduled'
+    | 'queued'
+    | 'running'
+    | 'waiting-approval'
+    | 'paused'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+
+export type CompanionWorkflowStepStatus
+  = | 'pending'
+    | 'running'
+    | 'waiting-approval'
+    | 'completed'
+    | 'failed'
+    | 'skipped'
+
+export type CompanionWorkflowStepAction
+  = | { type: 'safe-action', action: TaskSafeAction }
+    | { type: 'computer-use', argv: string[] }
+
+export interface CompanionWorkflowStep {
+  id: string
+  title: string
+  details?: string
+  action: CompanionWorkflowStepAction
+  status: CompanionWorkflowStepStatus
+  requiresApproval: boolean
+  approvalRisk: CompanionApprovalRisk
+  approvalId?: string
+  startedAt?: number
+  completedAt?: number
+  lastResult?: string
+}
+
+export interface CompanionWorkflow {
+  id: string
+  goal: string
+  summary?: string
+  status: CompanionWorkflowStatus
+  steps: CompanionWorkflowStep[]
+  currentStepIndex: number
+  createdAt: number
+  updatedAt: number
+  completedAt?: number
+  lastError?: string
+  recurrence?: TaskRecurrence
+  nextRunAt?: number
+  runsCompleted?: number
+  revisionCount: number
+  lastEvaluation?: string
+  lastEvaluatedAt?: number
+  metadata?: Record<string, unknown>
+}
 
 export interface ScheduledTask {
   id: string
@@ -22,17 +130,83 @@ export interface ScheduledTask {
   details?: string
   priority: TaskPriority
   status: TaskStatus
+  autonomy: TaskAutonomy
+  safeAction?: TaskSafeAction
+  recurrence?: TaskRecurrence
   dueAt?: number
+  occurrencesCompleted?: number
   createdAt: number
   updatedAt: number
   lastNotifiedAt?: number
   nextNotifyAt?: number
+  lastRunAt?: number
+  lastRunResult?: string
   metadata?: Record<string, unknown>
 }
 
+export function calculateNextTaskDueAt(recurrence: TaskRecurrence, after: number) {
+  if (recurrence.type === 'interval') {
+    if (!Number.isFinite(recurrence.everyMinutes) || recurrence.everyMinutes <= 0)
+      return undefined
+    return after + recurrence.everyMinutes * 60_000
+  }
+
+  if (!Number.isInteger(recurrence.hour) || recurrence.hour < 0 || recurrence.hour > 23)
+    return undefined
+  if (!Number.isInteger(recurrence.minute) || recurrence.minute < 0 || recurrence.minute > 59)
+    return undefined
+
+  if (recurrence.type === 'daily') {
+    const candidate = new Date(after)
+    candidate.setHours(recurrence.hour, recurrence.minute, 0, 0)
+    if (candidate.getTime() <= after)
+      candidate.setDate(candidate.getDate() + 1)
+    return candidate.getTime()
+  }
+
+  const days = [...new Set(recurrence.daysOfWeek)]
+    .filter(day => Number.isInteger(day) && day >= 0 && day <= 6)
+  if (!days.length)
+    return undefined
+
+  for (let offset = 0; offset <= 7; offset += 1) {
+    const candidate = new Date(after)
+    candidate.setDate(candidate.getDate() + offset)
+    candidate.setHours(recurrence.hour, recurrence.minute, 0, 0)
+    if (candidate.getTime() > after && days.includes(candidate.getDay()))
+      return candidate.getTime()
+  }
+
+  return undefined
+}
+
 export const useCharacterNotebookStore = defineStore('character-notebook', () => {
-  const entries = ref<NotebookEntry[]>([])
-  const tasks = ref<ScheduledTask[]>([])
+  const persistenceOptions = { listenToStorageChanges: false, deep: true }
+  const entries = useLocalStorageManualReset<NotebookEntry[]>(
+    'companion/notebook/entries/v1',
+    [],
+    persistenceOptions,
+  )
+  const tasks = useLocalStorageManualReset<ScheduledTask[]>(
+    'companion/notebook/tasks/v1',
+    [],
+    persistenceOptions,
+  )
+  const approvals = useLocalStorageManualReset<CompanionApprovalRequest[]>(
+    'companion/notebook/approvals/v1',
+    [],
+    persistenceOptions,
+  )
+  const activityLog = useLocalStorageManualReset<CompanionActivityLogEntry[]>(
+    'companion/notebook/activity/v1',
+    [],
+    persistenceOptions,
+  )
+  const workflows = useLocalStorageManualReset<CompanionWorkflow[]>(
+    'companion/notebook/workflows/v1',
+    [],
+    persistenceOptions,
+  )
 
   const partitionDiary = computed(() => entries.value.filter(entry => entry.kind === 'diary'))
   const partitionFocus = computed(() => entries.value.filter(entry => entry.kind === 'focus'))
@@ -67,17 +241,25 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     title: string
     details?: string
     priority?: TaskPriority
+    autonomy?: TaskAutonomy
+    safeAction?: TaskSafeAction
+    recurrence?: TaskRecurrence
     dueAt?: number
     metadata?: Record<string, unknown>
   }) {
     const now = Date.now()
+    const dueAt = payload.dueAt ?? (payload.recurrence ? calculateNextTaskDueAt(payload.recurrence, now) : undefined)
     const task: ScheduledTask = {
       id: nanoid(),
       title: payload.title,
       details: payload.details,
       priority: payload.priority ?? 'normal',
-      status: payload.dueAt ? 'scheduled' : 'queued',
-      dueAt: payload.dueAt,
+      status: dueAt ? 'scheduled' : 'queued',
+      autonomy: payload.autonomy ?? 'remind',
+      safeAction: payload.safeAction,
+      recurrence: payload.recurrence,
+      dueAt,
+      occurrencesCompleted: 0,
       createdAt: now,
       updatedAt: now,
       metadata: payload.metadata,
@@ -87,22 +269,65 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     return task
   }
 
+  function advanceRecurringTask(task: ScheduledTask, completedAt: number) {
+    if (!task.recurrence)
+      return false
+
+    const nextDueAt = calculateNextTaskDueAt(task.recurrence, completedAt)
+    if (!nextDueAt)
+      return false
+
+    task.status = 'scheduled'
+    task.dueAt = nextDueAt
+    task.lastNotifiedAt = undefined
+    task.nextNotifyAt = undefined
+    task.occurrencesCompleted = (task.occurrencesCompleted ?? 0) + 1
+    task.updatedAt = completedAt
+    task.metadata = {
+      ...task.metadata,
+      lastOccurrenceCompletedAt: completedAt,
+    }
+    appendActivity({
+      kind: 'task-recurrence-advanced',
+      title: `Đã lên lịch lần tiếp theo: ${task.title}`,
+      details: new Date(nextDueAt).toLocaleString('vi-VN'),
+      status: 'info',
+      metadata: {
+        taskId: task.id,
+        recurrence: task.recurrence,
+        occurrencesCompleted: task.occurrencesCompleted,
+      },
+    })
+    return true
+  }
+
   function markTaskDone(taskId: string) {
     const task = tasks.value.find(item => item.id === taskId)
     if (!task)
       return
 
+    const now = Date.now()
+    if (advanceRecurringTask(task, now))
+      return
+
     task.status = 'done'
-    task.updatedAt = Date.now()
+    task.updatedAt = now
   }
 
-  function requeueTask(taskId: string, options?: { dueAt?: number, reason?: string }) {
+  function requeueTask(taskId: string, options?: { dueAt?: number, reason?: string, recurrence?: TaskRecurrence | null }) {
     const task = tasks.value.find(item => item.id === taskId)
     if (!task)
       return
 
-    task.status = 'queued'
-    task.dueAt = options?.dueAt
+    if (options?.recurrence !== undefined)
+      task.recurrence = options.recurrence ?? undefined
+
+    const dueAt = options?.dueAt
+      ?? (task.recurrence ? calculateNextTaskDueAt(task.recurrence, Date.now()) : undefined)
+
+    task.status = dueAt ? 'scheduled' : 'queued'
+    task.dueAt = dueAt
+    task.nextNotifyAt = undefined
     task.updatedAt = Date.now()
     task.metadata = {
       ...task.metadata,
@@ -120,11 +345,28 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     task.updatedAt = Date.now()
   }
 
+  function markTaskRun(taskId: string, result: string, completed = false) {
+    const task = tasks.value.find(item => item.id === taskId)
+    if (!task)
+      return
+
+    const now = Date.now()
+    task.lastRunAt = now
+    task.lastRunResult = result
+    task.updatedAt = now
+    if (completed) {
+      if (advanceRecurringTask(task, now))
+        return
+      task.status = 'done'
+      task.nextNotifyAt = undefined
+    }
+  }
+
   function getDueTasks(now: number, windowMs: number) {
     return tasks.value.filter((task) => {
-      if (task.status === 'done' || task.status === 'dropped')
+      if (task.status !== 'scheduled' || typeof task.dueAt !== 'number')
         return false
-      const dueAt = task.dueAt ?? now
+      const dueAt = task.dueAt
       if (dueAt > now + windowMs)
         return false
       if (typeof task.nextNotifyAt === 'number' && task.nextNotifyAt > now)
@@ -133,9 +375,742 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     })
   }
 
+  function getDueAutonomousTasks(now: number, windowMs: number) {
+    return getDueTasks(now, windowMs).filter(task => task.autonomy === 'safe-auto' && task.safeAction)
+  }
+
+  function appendActivity(payload: {
+    kind: string
+    title: string
+    details?: string
+    status?: CompanionActivityStatus
+    metadata?: Record<string, unknown>
+  }) {
+    const entry: CompanionActivityLogEntry = {
+      id: nanoid(),
+      kind: payload.kind,
+      title: payload.title,
+      details: payload.details,
+      status: payload.status ?? 'info',
+      createdAt: Date.now(),
+      metadata: payload.metadata,
+    }
+
+    activityLog.value.push(entry)
+    if (activityLog.value.length > 300)
+      activityLog.value.splice(0, activityLog.value.length - 300)
+    return entry
+  }
+
+  function createWorkflow(payload: {
+    goal: string
+    summary?: string
+    steps: Array<{
+      title: string
+      details?: string
+      action: CompanionWorkflowStepAction
+      requiresApproval: boolean
+      approvalRisk?: CompanionApprovalRisk
+    }>
+    recurrence?: TaskRecurrence
+    runNow?: boolean
+    metadata?: Record<string, unknown>
+  }) {
+    if (!payload.steps.length)
+      throw new Error('Workflow requires at least one step.')
+
+    const now = Date.now()
+    const nextRunAt = payload.recurrence && !payload.runNow
+      ? calculateNextTaskDueAt(payload.recurrence, now)
+      : undefined
+    const workflow: CompanionWorkflow = {
+      id: nanoid(),
+      goal: payload.goal,
+      summary: payload.summary,
+      status: nextRunAt ? 'scheduled' : 'queued',
+      steps: payload.steps.map(step => ({
+        id: nanoid(),
+        title: step.title,
+        details: step.details,
+        action: step.action,
+        status: 'pending',
+        requiresApproval: step.requiresApproval,
+        approvalRisk: step.approvalRisk ?? 'high',
+      })),
+      currentStepIndex: 0,
+      createdAt: now,
+      updatedAt: now,
+      recurrence: payload.recurrence,
+      nextRunAt,
+      runsCompleted: 0,
+      revisionCount: 0,
+      metadata: payload.metadata,
+    }
+
+    workflows.value.push(workflow)
+    appendActivity({
+      kind: 'workflow-created',
+      title: `AIRI đã lập kế hoạch: ${workflow.goal}`,
+      details: workflow.summary ?? `${workflow.steps.length} bước`,
+      status: 'info',
+      metadata: {
+        workflowId: workflow.id,
+        stepCount: workflow.steps.length,
+      },
+    })
+    return workflow
+  }
+
+  function getNextRunnableWorkflow(now = Date.now()) {
+    const runningWorkflow = workflows.value
+      .filter(workflow => workflow.status === 'running')
+      .toSorted((a, b) => a.updatedAt - b.updatedAt)[0]
+    if (runningWorkflow)
+      return runningWorkflow
+
+    if (workflows.value.some(workflow => workflow.status === 'waiting-approval'))
+      return undefined
+
+    const queuedWorkflow = workflows.value
+      .filter(workflow => workflow.status === 'queued')
+      .toSorted((a, b) => a.createdAt - b.createdAt)[0]
+    if (queuedWorkflow)
+      return queuedWorkflow
+
+    return workflows.value
+      .filter(workflow => workflow.status === 'scheduled'
+        && typeof workflow.nextRunAt === 'number'
+        && workflow.nextRunAt <= now)
+      .toSorted((a, b) => (a.nextRunAt ?? Number.MAX_SAFE_INTEGER) - (b.nextRunAt ?? Number.MAX_SAFE_INTEGER))[0]
+  }
+
+  function getCurrentWorkflowStep(workflowId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow)
+      return undefined
+    return workflow.steps[workflow.currentStepIndex]
+  }
+
+  function startWorkflow(workflowId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow || (workflow.status !== 'scheduled' && workflow.status !== 'queued' && workflow.status !== 'running'))
+      return workflow
+
+    if (workflow.status === 'scheduled' && (typeof workflow.nextRunAt !== 'number' || workflow.nextRunAt > Date.now()))
+      return workflow
+
+    if (workflow.status === 'scheduled' || workflow.status === 'queued') {
+      workflow.status = 'running'
+      workflow.nextRunAt = undefined
+      workflow.updatedAt = Date.now()
+      appendActivity({
+        kind: 'workflow-started',
+        title: `AIRI bắt đầu mục tiêu: ${workflow.goal}`,
+        details: workflow.summary,
+        status: 'info',
+        metadata: { workflowId: workflow.id },
+      })
+    }
+    return workflow
+  }
+
+  function markWorkflowStepStarted(workflowId: string, stepId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    const step = workflow?.steps.find(item => item.id === stepId)
+    if (!workflow || !step)
+      return
+
+    const now = Date.now()
+    workflow.status = 'running'
+    workflow.updatedAt = now
+    step.status = 'running'
+    step.startedAt ??= now
+    appendActivity({
+      kind: 'workflow-step-started',
+      title: `Bước ${workflow.currentStepIndex + 1}: ${step.title}`,
+      details: step.details,
+      status: 'info',
+      metadata: {
+        workflowId: workflow.id,
+        workflowStepId: step.id,
+      },
+    })
+  }
+
+  function markWorkflowStepWaitingApproval(workflowId: string, stepId: string, approvalId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    const step = workflow?.steps.find(item => item.id === stepId)
+    if (!workflow || !step)
+      return
+
+    step.status = 'waiting-approval'
+    step.approvalId = approvalId
+    workflow.status = 'waiting-approval'
+    workflow.updatedAt = Date.now()
+  }
+
+  function markWorkflowStepResult(workflowId: string, stepId: string, payload: { ok: boolean, result: string }) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    const step = workflow?.steps.find(item => item.id === stepId)
+    if (!workflow || !step)
+      return
+
+    const now = Date.now()
+    step.lastResult = payload.result
+    step.completedAt = now
+    workflow.updatedAt = now
+
+    if (!payload.ok) {
+      step.status = 'failed'
+      workflow.status = 'paused'
+      workflow.lastError = payload.result
+      appendActivity({
+        kind: 'workflow-step-failed',
+        title: `Bước bị dừng: ${step.title}`,
+        details: payload.result,
+        status: 'error',
+        metadata: {
+          workflowId: workflow.id,
+          workflowStepId: step.id,
+        },
+      })
+      return
+    }
+
+    step.status = 'completed'
+    step.approvalId = undefined
+    workflow.currentStepIndex += 1
+    workflow.lastError = undefined
+
+    if (workflow.currentStepIndex >= workflow.steps.length) {
+      workflow.status = 'completed'
+      workflow.completedAt = now
+      appendActivity({
+        kind: 'workflow-completed',
+        title: `AIRI đã hoàn thành mục tiêu: ${workflow.goal}`,
+        details: payload.result,
+        status: 'success',
+        metadata: { workflowId: workflow.id },
+      })
+      return
+    }
+
+    workflow.status = 'running'
+    appendActivity({
+      kind: 'workflow-step-completed',
+      title: `Đã xong bước: ${step.title}`,
+      details: payload.result,
+      status: 'success',
+      metadata: {
+        workflowId: workflow.id,
+        workflowStepId: step.id,
+        nextStepIndex: workflow.currentStepIndex,
+      },
+    })
+  }
+
+  function scheduleNextWorkflowRun(workflowId: string, completedAt = Date.now()) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow || workflow.status !== 'completed' || !workflow.recurrence)
+      return workflow
+
+    const nextRunAt = calculateNextTaskDueAt(workflow.recurrence, completedAt)
+    if (!nextRunAt)
+      return workflow
+
+    for (const step of workflow.steps) {
+      if (step.status === 'skipped')
+        continue
+      step.status = 'pending'
+      step.approvalId = undefined
+      step.startedAt = undefined
+      step.completedAt = undefined
+      step.lastResult = undefined
+    }
+
+    const nextIndex = workflow.steps.findIndex(step => step.status === 'pending')
+    if (nextIndex < 0)
+      return workflow
+
+    workflow.currentStepIndex = nextIndex
+    workflow.status = 'scheduled'
+    workflow.nextRunAt = nextRunAt
+    workflow.runsCompleted = (workflow.runsCompleted ?? 0) + 1
+    workflow.completedAt = undefined
+    workflow.lastError = undefined
+    workflow.lastEvaluation = undefined
+    workflow.lastEvaluatedAt = undefined
+    workflow.revisionCount = 0
+    workflow.updatedAt = completedAt
+
+    appendActivity({
+      kind: 'workflow-recurrence-advanced',
+      title: `Đã lên lịch lượt tiếp theo: ${workflow.goal}`,
+      details: new Date(nextRunAt).toLocaleString('vi-VN'),
+      status: 'info',
+      metadata: {
+        workflowId: workflow.id,
+        recurrence: workflow.recurrence,
+        runsCompleted: workflow.runsCompleted,
+      },
+    })
+
+    return workflow
+  }
+
+  function reviseWorkflowPlan(workflowId: string, payload: {
+    reason: string
+    steps: Array<{
+      title: string
+      details?: string
+      action: CompanionWorkflowStepAction
+      requiresApproval: boolean
+      approvalRisk?: CompanionApprovalRisk
+    }>
+  }) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow)
+      return workflow
+    if (!payload.steps.length)
+      throw new Error('Workflow revision requires at least one replacement step.')
+
+    const now = Date.now()
+    const replacementStartIndex = workflow.steps.length
+
+    for (let index = workflow.currentStepIndex; index < workflow.steps.length; index += 1) {
+      const step = workflow.steps[index]
+      if (!step || step.status === 'completed' || step.status === 'skipped')
+        continue
+      step.status = 'skipped'
+      step.approvalId = undefined
+      step.completedAt ??= now
+    }
+
+    workflow.steps.push(...payload.steps.map(step => ({
+      id: nanoid(),
+      title: step.title,
+      details: step.details,
+      action: step.action,
+      status: 'pending' as const,
+      requiresApproval: step.requiresApproval,
+      approvalRisk: step.approvalRisk ?? 'high',
+    })))
+    workflow.currentStepIndex = replacementStartIndex
+    workflow.status = 'running'
+    workflow.completedAt = undefined
+    workflow.lastError = undefined
+    workflow.revisionCount = (workflow.revisionCount ?? 0) + 1
+    workflow.lastEvaluation = payload.reason
+    workflow.lastEvaluatedAt = now
+    workflow.updatedAt = now
+
+    appendActivity({
+      kind: 'workflow-replanned',
+      title: `AIRI đã sửa kế hoạch: ${workflow.goal}`,
+      details: payload.reason,
+      status: 'info',
+      metadata: {
+        workflowId: workflow.id,
+        revisionCount: workflow.revisionCount,
+        replacementStepCount: payload.steps.length,
+      },
+    })
+    return workflow
+  }
+
+  function recordWorkflowEvaluation(workflowId: string, evaluation: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow)
+      return
+
+    const now = Date.now()
+    workflow.lastEvaluation = evaluation
+    workflow.lastEvaluatedAt = now
+    workflow.updatedAt = now
+    appendActivity({
+      kind: 'workflow-evaluated',
+      title: `AIRI đã đánh giá lại: ${workflow.goal}`,
+      details: evaluation,
+      status: 'info',
+      metadata: {
+        workflowId: workflow.id,
+        revisionCount: workflow.revisionCount,
+      },
+    })
+  }
+
+  function pauseWorkflow(workflowId: string, reason: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow || workflow.status === 'cancelled')
+      return workflow
+
+    workflow.status = 'paused'
+    workflow.lastError = reason
+    workflow.lastEvaluation = reason
+    workflow.lastEvaluatedAt = Date.now()
+    workflow.updatedAt = Date.now()
+    appendActivity({
+      kind: 'workflow-paused',
+      title: `AIRI tạm dừng mục tiêu: ${workflow.goal}`,
+      details: reason,
+      status: 'warning',
+      metadata: { workflowId: workflow.id },
+    })
+    return workflow
+  }
+
+  function resumeWorkflow(workflowId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow || (workflow.status !== 'paused' && workflow.status !== 'failed'))
+      return workflow
+
+    const step = workflow.steps[workflow.currentStepIndex]
+    if (step && step.status === 'failed') {
+      step.status = 'pending'
+      step.approvalId = undefined
+      step.startedAt = undefined
+      step.completedAt = undefined
+      step.lastResult = undefined
+    }
+
+    workflow.status = 'running'
+    workflow.lastError = undefined
+    workflow.updatedAt = Date.now()
+    appendActivity({
+      kind: 'workflow-resumed',
+      title: `Tiếp tục mục tiêu: ${workflow.goal}`,
+      status: 'info',
+      metadata: { workflowId: workflow.id },
+    })
+    return workflow
+  }
+
+  function cancelWorkflow(workflowId: string) {
+    const workflow = workflows.value.find(item => item.id === workflowId)
+    if (!workflow || ['completed', 'cancelled'].includes(workflow.status))
+      return workflow
+
+    const now = Date.now()
+    workflow.status = 'cancelled'
+    workflow.updatedAt = now
+    for (const step of workflow.steps) {
+      if (step.status === 'pending' || step.status === 'running' || step.status === 'waiting-approval')
+        step.status = 'skipped'
+    }
+
+    for (const approval of approvals.value) {
+      if (approval.workflowId !== workflow.id || (approval.status !== 'pending' && approval.status !== 'approved'))
+        continue
+      approval.status = 'rejected'
+      approval.resolvedAt = now
+      approval.updatedAt = now
+      approval.result = 'Workflow cancelled before execution.'
+    }
+
+    appendActivity({
+      kind: 'workflow-cancelled',
+      title: `Đã hủy mục tiêu: ${workflow.goal}`,
+      status: 'warning',
+      metadata: { workflowId: workflow.id },
+    })
+    return workflow
+  }
+
+  function requestApproval(payload: {
+    title: string
+    reason?: string
+    risk: CompanionApprovalRisk
+    action: CompanionComputerUseAction
+    workflowId?: string
+    workflowStepId?: string
+  }) {
+    const actionKey = JSON.stringify(payload.action)
+    const existing = approvals.value.find((approval) => {
+      return approval.status === 'pending'
+        && approval.title === payload.title
+        && approval.risk === payload.risk
+        && approval.workflowId === payload.workflowId
+        && approval.workflowStepId === payload.workflowStepId
+        && JSON.stringify(approval.action) === actionKey
+    })
+    if (existing)
+      return existing
+
+    const now = Date.now()
+    const approval: CompanionApprovalRequest = {
+      id: nanoid(),
+      title: payload.title,
+      reason: payload.reason,
+      risk: payload.risk,
+      action: payload.action,
+      status: 'pending',
+      workflowId: payload.workflowId,
+      workflowStepId: payload.workflowStepId,
+      createdAt: now,
+      updatedAt: now,
+    }
+    approvals.value.push(approval)
+    appendActivity({
+      kind: 'approval-requested',
+      title: `AIRI xin phép: ${approval.title}`,
+      details: approval.reason,
+      status: approval.risk === 'critical' ? 'warning' : 'info',
+      metadata: {
+        approvalId: approval.id,
+        risk: approval.risk,
+      },
+    })
+    return approval
+  }
+
+  function resolveApproval(approvalId: string, decision: 'approved' | 'rejected') {
+    const approval = approvals.value.find(item => item.id === approvalId)
+    if (!approval || approval.status !== 'pending')
+      return approval
+
+    const now = Date.now()
+    approval.status = decision
+    approval.resolvedAt = now
+    approval.expiresAt = decision === 'approved' ? now + 30 * 60 * 1_000 : undefined
+    approval.updatedAt = now
+    appendActivity({
+      kind: decision === 'approved' ? 'approval-approved' : 'approval-rejected',
+      title: decision === 'approved'
+        ? `Đã cho phép: ${approval.title}`
+        : `Đã từ chối: ${approval.title}`,
+      details: approval.reason,
+      status: decision === 'approved' ? 'success' : 'warning',
+      metadata: {
+        approvalId: approval.id,
+        risk: approval.risk,
+        workflowId: approval.workflowId,
+        workflowStepId: approval.workflowStepId,
+      },
+    })
+
+    if (decision === 'rejected' && approval.workflowId && approval.workflowStepId) {
+      markWorkflowStepResult(approval.workflowId, approval.workflowStepId, {
+        ok: false,
+        result: 'Anh đã từ chối bước này. Workflow được tạm dừng.',
+      })
+    }
+
+    return approval
+  }
+
+  function markApprovalExecuting(approvalId: string, now = Date.now()) {
+    const approval = approvals.value.find(item => item.id === approvalId)
+    if (!approval || approval.status !== 'approved')
+      return approval
+
+    if (typeof approval.expiresAt === 'number' && approval.expiresAt <= now) {
+      approval.status = 'expired'
+      approval.updatedAt = now
+      approval.result = 'Approval expired before execution started.'
+      return approval
+    }
+
+    approval.status = 'executing'
+    approval.executionStartedAt = now
+    approval.updatedAt = now
+    return approval
+  }
+
+  function getNextApprovedApproval(now = Date.now()) {
+    for (const approval of approvals.value) {
+      if (approval.status !== 'approved' || typeof approval.expiresAt !== 'number' || approval.expiresAt > now)
+        continue
+
+      approval.status = 'expired'
+      approval.updatedAt = now
+      appendActivity({
+        kind: 'approval-expired',
+        title: `Quyền đã hết hạn: ${approval.title}`,
+        details: 'AIRI không thực hiện vì quyền cho phép đã quá 30 phút.',
+        status: 'warning',
+        metadata: {
+          approvalId: approval.id,
+          risk: approval.risk,
+          workflowId: approval.workflowId,
+          workflowStepId: approval.workflowStepId,
+        },
+      })
+
+      if (approval.workflowId && approval.workflowStepId) {
+        markWorkflowStepResult(approval.workflowId, approval.workflowStepId, {
+          ok: false,
+          result: 'Quyền cho bước này đã hết hạn sau 30 phút. Workflow được tạm dừng.',
+        })
+      }
+    }
+
+    return approvals.value
+      .filter(approval => approval.status === 'approved')
+      .toSorted((a, b) => a.updatedAt - b.updatedAt)[0]
+  }
+
+  function markApprovalResult(approvalId: string, payload: { ok: boolean, result: string }) {
+    const approval = approvals.value.find(item => item.id === approvalId)
+    if (!approval)
+      return
+
+    const now = Date.now()
+    approval.status = payload.ok ? 'completed' : 'failed'
+    approval.executedAt = now
+    approval.updatedAt = now
+    approval.result = payload.result
+    appendActivity({
+      kind: payload.ok ? 'action-completed' : 'action-failed',
+      title: payload.ok
+        ? `AIRI đã làm xong: ${approval.title}`
+        : `AIRI không làm được: ${approval.title}`,
+      details: payload.result,
+      status: payload.ok ? 'success' : 'error',
+      metadata: {
+        approvalId: approval.id,
+        risk: approval.risk,
+        workflowId: approval.workflowId,
+        workflowStepId: approval.workflowStepId,
+      },
+    })
+
+    if (approval.workflowId && approval.workflowStepId) {
+      markWorkflowStepResult(approval.workflowId, approval.workflowStepId, {
+        ok: payload.ok,
+        result: payload.result,
+      })
+    }
+  }
+
+  function recoverInterruptedAutomationState(now = Date.now()) {
+    let recoveredWorkflows = 0
+    let interruptedApprovals = 0
+
+    for (const approval of approvals.value) {
+      if (approval.status !== 'executing')
+        continue
+
+      interruptedApprovals += 1
+      const reason = 'AIRI was interrupted while this approved action was executing. The external state may already have changed, so AIRI will not replay it automatically.'
+
+      approval.status = 'failed'
+      approval.updatedAt = now
+      approval.result = reason
+      appendActivity({
+        kind: 'approval-execution-interrupted',
+        title: `Thao tác bị gián đoạn: ${approval.title}`,
+        details: reason,
+        status: 'warning',
+        metadata: {
+          approvalId: approval.id,
+          risk: approval.risk,
+          workflowId: approval.workflowId,
+          workflowStepId: approval.workflowStepId,
+          executionStartedAt: approval.executionStartedAt,
+        },
+      })
+
+      if (approval.workflowId && approval.workflowStepId) {
+        const workflow = workflows.value.find(item => item.id === approval.workflowId)
+        const step = workflow?.steps.find(item => item.id === approval.workflowStepId)
+        if (workflow && step && step.status !== 'completed' && step.status !== 'skipped') {
+          markWorkflowStepResult(workflow.id, step.id, {
+            ok: false,
+            result: reason,
+          })
+        }
+      }
+    }
+
+    for (const workflow of workflows.value) {
+      if (workflow.status !== 'running')
+        continue
+
+      const step = workflow.steps[workflow.currentStepIndex]
+      if (!step) {
+        pauseWorkflow(workflow.id, 'AIRI found an interrupted workflow with no current step. It was paused to avoid guessing what to do next.')
+        recoveredWorkflows += 1
+        continue
+      }
+
+      if (step.status === 'running') {
+        if (step.requiresApproval) {
+          pauseWorkflow(workflow.id, 'A state-changing workflow step was left in an unsafe running state after interruption. AIRI will not retry it automatically.')
+          recoveredWorkflows += 1
+          continue
+        }
+
+        step.status = 'pending'
+        step.startedAt = undefined
+        step.completedAt = undefined
+        step.lastResult = undefined
+        workflow.status = 'queued'
+        workflow.updatedAt = now
+        recoveredWorkflows += 1
+        appendActivity({
+          kind: 'workflow-recovered',
+          title: `Khôi phục công việc an toàn: ${workflow.goal}`,
+          details: `AIRI sẽ chạy lại bước read-only/an toàn: ${step.title}`,
+          status: 'info',
+          metadata: {
+            workflowId: workflow.id,
+            workflowStepId: step.id,
+          },
+        })
+        continue
+      }
+
+      if (step.status === 'pending') {
+        workflow.status = 'queued'
+        workflow.updatedAt = now
+        recoveredWorkflows += 1
+        appendActivity({
+          kind: 'workflow-recovered',
+          title: `Tiếp tục công việc: ${workflow.goal}`,
+          details: `Bước tiếp theo vẫn chưa chạy: ${step.title}`,
+          status: 'info',
+          metadata: {
+            workflowId: workflow.id,
+            workflowStepId: step.id,
+          },
+        })
+        continue
+      }
+
+      if (step.status === 'waiting-approval') {
+        workflow.status = 'waiting-approval'
+        workflow.updatedAt = now
+        recoveredWorkflows += 1
+        continue
+      }
+
+      if (step.status === 'failed') {
+        workflow.status = 'paused'
+        workflow.updatedAt = now
+        recoveredWorkflows += 1
+      }
+    }
+
+    return {
+      recoveredWorkflows,
+      interruptedApprovals,
+    }
+  }
+
+  function clearActivityLog() {
+    activityLog.value.splice(0)
+  }
+
+  function clearResolvedApprovals() {
+    approvals.value = approvals.value.filter(approval => approval.status === 'pending' || approval.status === 'approved' || approval.status === 'executing')
+  }
+
   return {
     entries,
     tasks,
+    approvals,
+    activityLog,
+    workflows,
     partitionDiary,
     partitionFocus,
     addNote,
@@ -145,6 +1120,34 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     markTaskDone,
     requeueTask,
     markTaskNotified,
+    markTaskRun,
     getDueTasks,
+    getDueAutonomousTasks,
+    appendActivity,
+    createWorkflow,
+    getNextRunnableWorkflow,
+    getCurrentWorkflowStep,
+    startWorkflow,
+    markWorkflowStepStarted,
+    markWorkflowStepWaitingApproval,
+    markWorkflowStepResult,
+    scheduleNextWorkflowRun,
+    reviseWorkflowPlan,
+    recordWorkflowEvaluation,
+    pauseWorkflow,
+    resumeWorkflow,
+    cancelWorkflow,
+    requestApproval,
+    resolveApproval,
+    markApprovalExecuting,
+    getNextApprovedApproval,
+    markApprovalResult,
+    recoverInterruptedAutomationState,
+    clearActivityLog,
+    clearResolvedApprovals,
   }
+}, {
+  synced: {
+    state: true,
+  },
 })

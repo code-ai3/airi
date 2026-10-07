@@ -20,6 +20,8 @@ import StepWelcome from './step-welcome.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
+import { useSpeechStore } from '../../../../stores/modules/speech'
+import { useVisionStore } from '../../../../stores/modules/vision'
 import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
 
@@ -44,20 +46,23 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
+const speechStore = useSpeechStore()
+const visionStore = useVisionStore()
 const {
   activeProvider,
+  activeModel,
 } = storeToRefs(consciousnessStore)
 
 // Popular providers for first-time setup
 const popularProviders = computed(() => {
-  const popular = ['openai', 'azure-openai', 'anthropic', 'amazon-bedrock', 'google-generative-ai', 'groq', 'nvidia', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
+  const popular = ['google-generative-ai', 'openai', 'azure-openai', 'anthropic', 'amazon-bedrock', 'groq', 'nvidia', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
   return allChatProvidersMetadata.value
     .filter(provider => popular.includes(provider.id))
     .sort((a, b) => popular.indexOf(a.id) - popular.indexOf(b.id))
 })
 
 // Selected provider and form data
-const selectedProviderId = ref('')
+const selectedProviderId = ref('google-generative-ai')
 
 // Computed selected provider
 const selectedProvider = computed(() => {
@@ -174,6 +179,24 @@ const isLastStep = computed(() => step.value === allSteps.value.length - 1)
 const currentStepProps = computed(() => currentStep.value?.props?.() ?? {})
 
 async function handleSave() {
+  if (activeProvider.value === 'google-generative-ai' && activeModel.value) {
+    visionStore.activeProvider = activeProvider.value
+    visionStore.activeModel = activeModel.value
+
+    const geminiConfig = providerStore.getProviderConfig('google-generative-ai')
+    const apiKey = typeof geminiConfig?.apiKey === 'string' ? geminiConfig.apiKey.trim() : ''
+    if (apiKey) {
+      await providersStore.initializeProvider('google-gemini-audio-speech')
+      await providerStore.patchProviderConfig('google-gemini-audio-speech', { apiKey })
+      await providersStore.forceProviderConfigured('google-gemini-audio-speech')
+      await speechStore.selectProviderModel(
+        'google-gemini-audio-speech',
+        'gemini-2.5-flash-preview-tts',
+        'Leda',
+      )
+    }
+  }
+
   trackOnboardingStepCompleted(currentStep.value?.id ?? 'unknown')
   trackOnboardingCompleted({
     selected_provider_type: selectedProviderType.value,

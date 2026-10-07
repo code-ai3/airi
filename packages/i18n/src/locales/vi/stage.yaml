@@ -1,10 +1,14 @@
 chat:
   actions:
     retry: Thử lại
+    reply: Trả lời
+    send: Gửi tin nhắn
+    stop: Dừng trả lời
   message:
     character-name:
       core-system: Hệ thống lõi
       you: Bạn
+      airi: AIRI
   reasoning: Đang suy nghĩ
   sessions:
     title: Đoạn hội thoại
@@ -13,6 +17,40 @@ chat:
     cloud-badge: Đã đồng bộ đám mây
     new-chat-fallback: Cuộc trò chuyện mới
     delete: Xóa đoạn hội thoại
+    delete-short: Xóa
+    confirm-delete-short: Xác nhận xóa
+    current: Hiện tại
+    confirm-delete: Xóa cuộc trò chuyện này và toàn bộ tin nhắn của nó?
+    cancel: Hủy
+  voice-input: Nhập bằng giọng nói
+  error-details:
+    show: Hiện chi tiết
+    hide: Ẩn chi tiết
+  images:
+    empty: Chia sẻ một suy nghĩ hoặc một hình ảnh.
+    use-vision: Dùng mô hình thị giác cho ảnh trong trò chuyện
+    use-vision-description: Chọn nhà cung cấp và mô hình bên dưới. Mô hình này sẽ đọc ảnh đính kèm trước khi mô hình trò chuyện trả lời. Nếu không dùng mô hình thị giác, ảnh sẽ được gửi trực tiếp cho mô hình trò chuyện.
+    attach: Đính kèm hình ảnh
+    remove: Xóa {name}
+    unsupported: Hãy dùng ảnh PNG, JPEG, WebP hoặc GIF.
+    too-large: Mỗi ảnh phải có dung lượng không quá 3 MB.
+    too-many: Mỗi lần chỉ đính kèm tối đa {count} ảnh.
+    total-too-large: Tổng dung lượng tất cả ảnh đính kèm phải không quá 3 MB.
+    read-failed: Không thể đọc ảnh này. Hãy thử lại.
+    no-description: Mô hình thị giác không trả về mô tả ảnh. Hãy kiểm tra Cài đặt → Mô-đun → Thị giác rồi thử lại.
+    reading: Đang đọc hình ảnh…
+    description: Ảnh đính kèm
+  reply:
+    cancel: Hủy trả lời
+    message: Tin nhắn
+    replying-to: Đang trả lời {name}
+  swipe-demo:
+    show-label: Hiện nhãn
+    delete: Xóa
+    archive: Lưu trữ
+    pin: Ghim
+    actions: Hiện thao tác
+    row: Cuộc trò chuyện {n}
 render-error:
   title: '{renderer} không thể hiển thị mô hình này'
   description: Mô hình đã được chọn nhưng sân khấu không thể hiển thị mô hình đó.
@@ -22,9 +60,10 @@ render-error:
     Lỗi: {error}
 message: Nói gì đó...
 send-mode:
-  title: Gửi key
-  enter: Nhập
-  double-enter: Nhập hai lần
+  title: Phím gửi tin nhắn
+  enter: Enter
+  double-enter: Nhấn Enter hai lần
+  ctrl-enter: Ctrl + Enter
 speech-output:
   mute: Tắt tiếng nói
   unmute: Bật tiếng nói
@@ -105,3 +144,62 @@ websocket-status:
   connected: Đã kết nối
   disconnected: Chưa kết nối
   open-settings: Mở cài đặt kết nối
+character-switcher:
+  title: Đổi nhân vật
+  manage: Quản lý nhân vật
+  empty: Chưa có nhân vật nào
+  failed: Không thể đổi nhân vật. Hãy thử lại.
+mobile-tools:
+  sign-in: Đăng nhập AIRI
+  account-description: Tài khoản và tùy chọn
+  sound: Âm thanh
+  character-voice: Giọng nhân vật
+  title: Cài đặt
+  appearance: Giao diện
+  dark-mode: Chế độ tối
+  application: Ứng dụng
+  more: Thêm
+  background: Hình nền
+  settings: Tất cả cài đặt
+  about: Giới thiệu
+  view: Hiển thị
+  close-view: Lưu và đóng điều khiển hiển thị
+  hearing: Nghe
+startup:
+  failed: Khởi động thất bại
+  failed-resource: Không thể tải {resource}
+  recover: Hãy thử lại. Nếu vẫn thất bại, mở phần chi tiết bên dưới.
+  recover-model: Hãy thử lại hoặc tiếp tục mà không có nhân vật. Bạn có thể chọn mô hình khác sau.
+  details: Đã xảy ra chuyện gì?
+  close-details: Đóng chi tiết
+  retry: Thử lại
+  continue-without-model: Vẫn tiếp tục
+  model-timeout: Mô hình nhân vật tải quá lâu. Hãy kiểm tra kết nối rồi thử lại.
+  resources:
+    auth: cài đặt tài khoản
+    modelIndex: danh sách mô hình
+    card: cài đặt nhân vật
+    chat: lịch sử trò chuyện
+    services: dịch vụ ứng dụng
+    modelData: mô hình đã lưu
+    modelSelection: cài đặt mô hình
+    audio: cài đặt âm thanh
+    route: trang
+    model: mô hình nhân vật
+computer-use:
+  label: Điều khiển máy tính
+  description: Cho phép cửa sổ trò chuyện này kiểm tra và điều khiển các ứng dụng trên máy tính.
+status:
+  preparing: Đang chuẩn bị micrô
+  listening: Đang nghe
+  paused: Tạm dừng nghe khi AIRI đang nói
+  transcribing: Đang chuyển giọng nói thành văn bản
+  hearing-error: Không thể chuyển âm thanh thành văn bản
+  no-transcript: Nội dung giọng nói nhận dạng được sẽ xuất hiện ở đây.
+  signing-in: Hoàn tất đăng nhập trong trình duyệt
+  confirming: Đang xác nhận đăng nhập
+  signed-in: Đã đăng nhập
+  sign-in-error: Đăng nhập thất bại
+  sign-in-unconfirmed: Không thể xác nhận phiên đăng nhập. Vui lòng đăng nhập lại.
+  dismiss: Đóng
+  configure-hearing: Chọn và cấu hình một nhà cung cấp nhận dạng giọng nói trong Cài đặt.

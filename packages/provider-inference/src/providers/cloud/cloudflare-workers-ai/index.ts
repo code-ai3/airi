@@ -14,7 +14,7 @@ export const providerCloudflareWorkersAI = defineProvider<CloudflareWorkersAICon
   id: 'cloudflare-workers-ai',
   name: 'Cloudflare Workers AI',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.cloudflare-workers-ai.title'),
-  description: 'Cloudflare Workers AI with account-scoped credentials.',
+  description: 'Cloudflare Workers AI sử dụng thông tin xác thực theo tài khoản.',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.cloudflare-workers-ai.description'),
   tasks: ['chat'],
   icon: 'i-simple-icons:cloudflare',

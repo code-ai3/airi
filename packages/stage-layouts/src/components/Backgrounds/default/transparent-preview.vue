@@ -1,7 +1,7 @@
 <template>
   <div class="transparent-preview">
     <div class="transparent-preview__label">
-      Transparent
+      Trong suốt
     </div>
   </div>
 </template>

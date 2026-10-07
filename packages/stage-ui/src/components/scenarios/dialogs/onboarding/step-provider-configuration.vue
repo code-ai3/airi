@@ -283,8 +283,8 @@ initializeForm()
                 v-model="apiKey"
                 :placeholder="getApiKeyPlaceholder(props.selectedProvider.id)"
                 type="password"
-                label="API Key"
-                description="Enter your API key for the selected provider."
+                :label="t('settings.dialogs.onboarding.apiKey')"
+                :description="t('settings.dialogs.onboarding.apiKeyHelp', { provider: props.selectedProvider.localizedName })"
                 required
               />
             </div>
@@ -295,8 +295,8 @@ initializeForm()
                 v-model="baseUrl"
                 :placeholder="getBaseUrlPlaceholder(props.selectedProvider.id)"
                 type="text"
-                label="Base URL"
-                description="Enter the base URL for the provider's API."
+                :label="t('settings.dialogs.onboarding.baseUrl')"
+                :description="t('settings.dialogs.onboarding.baseUrlHelp')"
               />
             </div>
 

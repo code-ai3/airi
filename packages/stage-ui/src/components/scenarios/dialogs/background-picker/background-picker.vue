@@ -148,7 +148,7 @@ async function handleFilesChange(files: File[]) {
   for (const file of files) {
     const option: BackgroundOption = {
       id: `${props.idPrefix}custom-${nanoid(6)}`,
-      label: file.name || 'Custom Background',
+      label: file.name || 'Hình nền tùy chỉnh',
       file,
       kind: 'image',
     }
@@ -247,7 +247,7 @@ async function applySelection(isImport = false) {
                 decoding="async"
               >
               <div v-else class="h-full w-full flex items-center justify-center text-sm text-neutral-500 dark:text-neutral-400">
-                No preview
+                Không có bản xem trước
               </div>
             </div>
             <div class="mt-2 flex flex-col gap-1">
@@ -260,7 +260,7 @@ async function applySelection(isImport = false) {
               v-if="option.removable"
               class="trash-button absolute right-2 top-2 z-10 flex cursor-pointer items-center justify-center rounded-full bg-neutral-200/50 p-1 text-neutral-600 backdrop-blur-md transition-opacity dark:bg-neutral-800/50"
               :class="[option.id === selectedId ? 'opacity-100' : 'opacity-0']"
-              title="Remove background"
+              title="Xóa hình nền"
               @click.stop="emit('remove', option)"
             >
               <div class="i-solar:trash-bin-trash-bold h-4 w-4" />
@@ -272,21 +272,21 @@ async function applySelection(isImport = false) {
           <BasicInputFile v-model="uploadingFiles" class="cursor-pointer">
             <div class="upload-button flex items-center gap-2 border border-neutral-300 rounded-lg border-dashed px-3 py-2 text-sm text-neutral-600 transition-colors dark:border-neutral-700 dark:text-neutral-300">
               <div i-solar:add-square-linear />
-              <span>Add custom background</span>
+              <span>Thêm hình nền tùy chỉnh</span>
             </div>
           </BasicInputFile>
         </div>
 
         <div class="border border-neutral-200 rounded-xl bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70">
           <p class="mb-2 text-sm text-neutral-600 dark:text-neutral-300">
-            Preview
+            Xem trước
           </p>
           <label
             v-if="selectedOption?.kind === 'image'"
             class="flex items-center gap-2 pb-2 text-sm text-neutral-700 dark:text-neutral-200"
           >
             <input v-model="enableBlur" type="checkbox" class="accent-primary-500">
-            <span>Blur</span>
+            <span>Làm mờ</span>
           </label>
           <div
             ref="previewRef"
@@ -307,7 +307,7 @@ async function applySelection(isImport = false) {
                 class="h-full w-full object-cover"
               >
               <div v-else class="h-full w-full flex items-center justify-center text-neutral-500 dark:text-neutral-400">
-                Select a background
+                Chọn một hình nền
               </div>
             </div>
             <BackgroundGradientOverlay v-if="selectedOption?.kind === 'image'" :color="previewColor" />
@@ -322,7 +322,7 @@ async function applySelection(isImport = false) {
         :disabled="!selectedOption || busy"
         @click="() => applySelection()"
       >
-        {{ busy ? 'Sampling...' : 'Use this background' }}
+        {{ busy ? 'Đang xử lý...' : 'Dùng hình nền này' }}
       </button>
     </div>
   </div>

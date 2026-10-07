@@ -10,6 +10,7 @@ import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prom
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
+import { usePersonalMemoryStore } from '../../modules/personal-memory'
 
 export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
 
@@ -21,6 +22,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const notebookStore = useCharacterNotebookStore()
   const { systemPrompt } = storeToRefs(characterStore)
   const runtimePrompt = useAiriRuntimePrompt()
+  const personalMemoryStore = usePersonalMemoryStore()
   const modsServerChannelStore = useModsServerChannelStore()
 
   const processing = ref(false)
@@ -136,7 +138,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
           provider,
         },
         systemPrompt: systemPrompt.value,
-        runtimePrompt: runtimePrompt.value,
+        runtimePrompt: [runtimePrompt.value, personalMemoryStore.contextText].filter(Boolean).join('\n\n'),
         control,
       })
       if (!result.commands.length)

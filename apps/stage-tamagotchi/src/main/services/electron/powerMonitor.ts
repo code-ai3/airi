@@ -3,9 +3,11 @@ import type EventEmitter from 'node:events'
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
+import { defineInvokeHandler } from '@moeru/eventa'
 import { electronEvents } from '@proj-airi/electron-eventa'
 import { powerMonitor } from 'electron'
 
+import { electronGetSystemIdleTime } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 
 export function createPowerMonitorService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
@@ -23,6 +25,13 @@ export function createPowerMonitorService(params: { context: ReturnType<typeof c
       offBeforeQuit()
     })
   }
+
+  defineInvokeHandler(params.context, electronGetSystemIdleTime, (_, options) => {
+    if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id)
+      return 0
+
+    return powerMonitor.getSystemIdleTime()
+  })
 
   onOff(powerMonitor, 'suspend', () => params.context.emit(electronEvents.powerMonitor.suspended, undefined))
   onOff(powerMonitor, 'resume', () => params.context.emit(electronEvents.powerMonitor.resumed, undefined))

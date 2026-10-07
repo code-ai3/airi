@@ -3,6 +3,9 @@ import { useI18n } from 'vue-i18n'
 
 import { EMOTION_EmotionMotionName_value, EMOTION_VALUES } from '../constants/emotions'
 
+const VIETNAMESE_ONLY_INSTRUCTION = `## Ngôn ngữ
+Luôn trả lời bằng tiếng Việt tự nhiên. Chỉ giữ nguyên tên riêng, tên sản phẩm, mô hình, mã nguồn, lệnh và thuật ngữ kỹ thuật khi cần.`
+
 const RUNTIME_PROMPT_KEYS = [
   'base.prompt.emotion',
   'base.prompt.emoji',
@@ -18,9 +21,10 @@ export function useAiriRuntimePrompt() {
       return ''
 
     return [
+      VIETNAMESE_ONLY_INSTRUCTION,
       t('base.prompt.emotion'),
       EMOTION_VALUES
-        .map(emotion => `- ${emotion} (Emotion for feeling ${EMOTION_EmotionMotionName_value[emotion]})`)
+        .map(emotion => `- ${emotion}: ${EMOTION_EmotionMotionName_value[emotion]}`)
         .join('\n'),
       t('base.prompt.suffix'),
       t('base.prompt.emoji'),

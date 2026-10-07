@@ -14,12 +14,12 @@ defineProps<{
           {{ title || 'Basic' }}
         </h2>
         <div text="neutral-400 dark:neutral-500">
-          <span>{{ description || 'Essential settings' }}</span>
+          <span>{{ description || 'Thiết lập thiết yếu' }}</span>
         </div>
       </div>
       <button
         v-if="onReset"
-        title="Reset settings"
+        title="Đặt lại cài đặt"
         flex items-center justify-center rounded-full p-2
         transition="all duration-250 ease-in-out"
         text="neutral-500 dark:neutral-400"

@@ -451,11 +451,41 @@ export interface ElectronWindowLifecycleState {
   visible: boolean
 }
 
+export interface ElectronForegroundWindowContext {
+  available: boolean
+  appName?: string
+  processId?: number
+  title?: string
+  updatedAt: number
+  windowId?: number
+}
+
 export const electronWindowLifecycleChanged = defineEventa<ElectronWindowLifecycleState>('eventa:event:electron:window:lifecycle-changed')
 export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindowLifecycleState>('eventa:invoke:electron:window:get-lifecycle-state')
+export const electronGetSystemIdleTime = defineInvokeEventa<number>('eventa:invoke:electron:power-monitor:get-system-idle-time')
+export const electronGetForegroundWindowContext = defineInvokeEventa<ElectronForegroundWindowContext>('eventa:invoke:electron:desktop:get-foreground-window')
 export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
+export const electronWindowSetVisible = defineInvokeEventa<void, { visible: boolean, focus?: boolean }>('eventa:invoke:electron:window:set-visible')
+export interface ElectronLaunchAtLoginState {
+  enabled: boolean
+  supported: boolean
+}
+
+export type ElectronSafeTaskAction
+  = | { type: 'open-url', url: string }
+    | { type: 'open-path', path: string }
+    | { type: 'open-vscode-workspace', path: string }
+
+export interface ElectronSafeTaskActionResult {
+  ok: boolean
+  message: string
+}
+
 export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
+export const electronAppGetLaunchAtLogin = defineInvokeEventa<ElectronLaunchAtLoginState>('eventa:invoke:electron:app:get-launch-at-login')
+export const electronAppSetLaunchAtLogin = defineInvokeEventa<ElectronLaunchAtLoginState, boolean>('eventa:invoke:electron:app:set-launch-at-login')
+export const electronAppRunSafeTaskAction = defineInvokeEventa<ElectronSafeTaskActionResult, ElectronSafeTaskAction>('eventa:invoke:electron:app:run-safe-task-action')
 /** Whether the app runs on the Wayland Ozone backend, where Electron cannot read the cursor position reliably. */
 export const electronAppIsWayland = defineInvokeEventa<boolean>('eventa:invoke:electron:app:is-wayland')
 export const electronAppIconGet = defineInvokeEventa<boolean>('eventa:invoke:electron:app-icon:get')

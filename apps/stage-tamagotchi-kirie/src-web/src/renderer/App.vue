@@ -254,7 +254,7 @@ function handleRouteRenderError(error: unknown, _instance: unknown, info: string
 
 <template>
   <ToasterRoot @close="id => toast.dismiss(id)">
-    <Toaster />
+    <Toaster container-aria-label="Thông báo" :toast-options="{ closeButtonAriaLabel: 'Đóng thông báo' }" />
   </ToasterRoot>
   <MicrophonePermissionPrompt
     v-if="isMainRenderer && microphonePermission"

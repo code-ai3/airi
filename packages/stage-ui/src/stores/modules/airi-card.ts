@@ -11,7 +11,12 @@ import { defineStore } from 'pinia'
 import { computed, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
+import {
+  DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT,
+  PERSONAL_COMPANION_PERSONALITY,
+  PERSONAL_COMPANION_SCENARIO,
+  PERSONAL_COMPANION_SYSTEM_PROMPT,
+} from '../../constants/prompts/character-defaults'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { resolveModuleSelection } from '../../services/airi-card-modules'
 import { useProviderConfigStore } from '../providers/config'
@@ -494,9 +499,13 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     initialized = true
     if (!cards.value.has('default')) {
       const defaultCard: AiriCard = {
-        name: 'ReLU',
+        name: 'BÔNG',
         version: '1.0.0',
         description: t('base.prompt.prefix'),
+        personality: PERSONAL_COMPANION_PERSONALITY,
+        scenario: PERSONAL_COMPANION_SCENARIO,
+        systemPrompt: PERSONAL_COMPANION_SYSTEM_PROMPT,
+        greetings: ['Anh đang làm gì đấy? Em ở đây rồi nè.'],
         extensions: {
           airi: {
             modules: {
@@ -509,6 +518,35 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         },
       }
       cards.value.set('default', newAiriCard(defaultCard))
+    }
+
+    const builtInCard = cards.value.get('default')
+    if (builtInCard?.name === 'AIRI') {
+      cards.value.set('default', newAiriCard({
+        ...builtInCard,
+        name: 'BÔNG',
+        personality: builtInCard.personality?.trim() || PERSONAL_COMPANION_PERSONALITY,
+        scenario: builtInCard.scenario?.replace(/^AIRI\b/u, 'BÔNG') || PERSONAL_COMPANION_SCENARIO,
+        systemPrompt: builtInCard.systemPrompt
+          ?.replace('# AIRI Personal Companion', '# BÔNG Personal Companion')
+          .replace('Bạn là AIRI,', 'Bạn là BÔNG,') || PERSONAL_COMPANION_SYSTEM_PROMPT,
+      }))
+    }
+
+    if (
+      builtInCard
+      && builtInCard.name === 'ReLU'
+      && !builtInCard.systemPrompt?.trim()
+      && !builtInCard.personality?.trim()
+      && !builtInCard.scenario?.trim()
+    ) {
+      cards.value.set('default', newAiriCard({
+        ...builtInCard,
+        name: 'BÔNG',
+        personality: PERSONAL_COMPANION_PERSONALITY,
+        scenario: PERSONAL_COMPANION_SCENARIO,
+        systemPrompt: PERSONAL_COMPANION_SYSTEM_PROMPT,
+      }))
     }
 
     // Stored speech-noop can mean an intentional mute. Only the editor may

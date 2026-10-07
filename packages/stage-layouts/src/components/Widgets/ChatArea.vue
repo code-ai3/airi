@@ -242,8 +242,8 @@ watch(replyTarget, async (target) => {
           <PopoverTrigger as-child>
             <button
               :class="secondaryComposerButtonClass"
-              :title="t('settings.hearing.title')"
-              :aria-label="t('settings.hearing.title')"
+              :title="t('settings.pages.modules.hearing.title')"
+              :aria-label="t('settings.pages.modules.hearing.title')"
             >
               <Transition name="fade" mode="out-in">
                 <IndicatorMicVolume v-if="enabled" class="h-5 w-5" :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />

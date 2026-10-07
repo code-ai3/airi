@@ -947,6 +947,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         })
       }
 
+      // The visible chat response is complete at this point. Release the
+      // composer immediately instead of keeping the UI in "sending" state
+      // while non-critical completion hooks finish in the background pipeline.
+      setSending(false)
+
       if (shouldAbort())
         return
       await hooks.emitStreamEndHooks(streamingMessageContext)

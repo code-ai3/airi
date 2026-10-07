@@ -137,7 +137,7 @@ function formatRelativeTime(timestamp: number | null) {
               :model-value="activeProvider"
               name="provider"
               :value="metadata.id"
-              :title="metadata.localizedName || 'Unknown'"
+              :title="metadata.localizedName || 'Không xác định'"
               :description="metadata.localizedDescription"
               @update:model-value="selectProvider"
               @click="trackProviderClick(metadata.id, 'vision')"
