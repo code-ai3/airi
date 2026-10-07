@@ -702,8 +702,8 @@ onUnmounted(() => {
               <div v-else class="space-y-3">
                 <FieldRange
                   v-model="useVolumeThreshold"
-                  label="Sensitivity"
-                  description="Adjust the threshold for speech detection"
+                  label="Độ nhạy"
+                  description="Điều chỉnh ngưỡng phát hiện giọng nói"
                   :min="1"
                   :max="80"
                   :step="1"
