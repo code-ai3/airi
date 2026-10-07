@@ -40,7 +40,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
         w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-        title="Settings"
+        :title="t('settings.title')"
         to="/settings"
       >
         <div i-solar:settings-minimalistic-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
@@ -51,7 +51,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
         w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-        title="Sign in"
+        :title="t('settings.pages.account.login')"
         type="button"
         @click="authStore.needsLogin = true"
       >
@@ -118,7 +118,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
           <AnimatedContent>
             <div class="px-3 py-2">
               <p class="text-xs text-neutral-500 dark:text-neutral-400">
-                Signed in as
+                {{ t('settings.pages.account.signedInAs') }}
               </p>
               <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
                 {{ userName }}
@@ -142,7 +142,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
                 ]"
               >
                 <div class="i-solar:user-id-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-                Profile
+                {{ t('settings.pages.account.profile.tab') }}
               </RouterLink>
             </DropdownMenuItem>
 
@@ -172,7 +172,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
                 ]"
               >
                 <div class="i-solar:settings-minimalistic-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-                Settings
+                {{ t('settings.title') }}
               </RouterLink>
             </DropdownMenuItem>
 
@@ -189,7 +189,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
                 @click="signOut"
               >
                 <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
-                Sign out
+                {{ t('settings.pages.account.logout') }}
               </button>
             </DropdownMenuItem>
           </AnimatedContent>
