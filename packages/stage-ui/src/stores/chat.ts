@@ -544,13 +544,33 @@ export const useChatStore = defineStore('chat', () => {
     return [...names].map(name => ({ name }))
   }
 
+  function formatChatError(error: unknown) {
+    const message = errorMessageFrom(error) ?? ''
+    const normalized = message.toLowerCase()
+
+    if (normalized.includes('payment_required') || normalized.includes('insufficient flux') || /(^|\D)402(\D|$)/.test(message))
+      return 'Nhà cung cấp AI báo tài khoản hoặc hạn mức hiện tại không đủ để xử lý yêu cầu. Hãy đổi nhà cung cấp hoặc mô hình, hoặc kiểm tra hạn mức tài khoản.'
+
+    if (normalized.includes('unauthorized') || /(^|\D)401(\D|$)/.test(message))
+      return 'Khóa API hoặc thông tin xác thực không hợp lệ. Hãy kiểm tra lại cấu hình nhà cung cấp AI.'
+
+    if (normalized.includes('forbidden') || /(^|\D)403(\D|$)/.test(message))
+      return 'Nhà cung cấp AI từ chối yêu cầu này. Hãy kiểm tra quyền truy cập của tài khoản hoặc khóa API.'
+
+    if (normalized.includes('rate limit') || normalized.includes('too many requests') || /(^|\D)429(\D|$)/.test(message))
+      return 'Đã vượt quá giới hạn yêu cầu của nhà cung cấp AI. Hãy chờ một lúc rồi thử lại.'
+
+    console.error('[chat] Provider error:', error)
+    return 'Không thể hoàn tất yêu cầu trò chuyện. Hãy kiểm tra nhà cung cấp AI, mô hình và kết nối rồi thử lại.'
+  }
+
   function appendSendError(sessionId: string, error: unknown) {
     if (!chatSession.getSessionMessagesIfLoaded(sessionId))
       return
 
     chatSession.appendSessionMessage(sessionId, {
       role: 'error',
-      content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
+      content: formatChatError(error),
     })
   }
 
@@ -558,15 +578,15 @@ export const useChatStore = defineStore('chat', () => {
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
-      throw new Error('No active chat provider or model configured')
+      throw new Error('Chưa cấu hình nhà cung cấp AI hoặc mô hình trò chuyện')
 
     if (!await chatSession.loadSession(payload.sessionId))
-      throw new Error('Failed to load the target chat session')
+      throw new Error('Không thể tải phiên trò chuyện hiện tại')
 
     const messageCount = chatSession.getSessionMessages(payload.sessionId).length
     const chatProvider = await consciousnessStore.getChatProviderInstance(providerId)
     if (!chatProvider)
-      throw new Error(`Failed to resolve chat provider "${providerId}"`)
+      throw new Error(`Không thể khởi tạo nhà cung cấp AI "${providerId}"`)
 
     await runtime.ingest(payload.text, {
       model: modelId,
