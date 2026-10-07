@@ -14,8 +14,8 @@ const modelValue = defineModel<string>({ required: true })
 <template>
   <FieldInput
     v-model="modelValue"
-    :label="props.label || 'Account ID'"
-    :description="props.description || 'Account ID'"
+    :label="props.label || 'ID tài khoản'"
+    :description="props.description || 'ID tài khoản'"
     :placeholder="props.placeholder"
     :required="props.required"
     type="text"
